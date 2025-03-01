@@ -352,177 +352,44 @@ class TableEditorPanel {
 	private _getHtmlForWebview(webview: vscode.Webview) {
 		// テーブルデータをJSON文字列に変換
 		const tableDataJson = JSON.stringify(this._tableData);
-
-		return `<!DOCTYPE html>
-		<html lang="ja">
-		<head>
-			<meta charset="UTF-8">
-			<meta name="viewport" content="width=device-width, initial-scale=1.0">
-			<title>テーブル編集</title>
-			<style>
-				body {
-					font-family: sans-serif;
-					padding: 20px;
-				}
-				table {
-					border-collapse: collapse;
-					width: 100%;
-					margin-bottom: 20px;
-				}
-				th, td {
-					border: 1px solid #ddd;
-					padding: 8px;
-					text-align: left;
-				}
-				th {
-					background-color: #f2f2f2;
-				}
-				button {
-					padding: 8px 16px;
-					margin-right: 10px;
-					cursor: pointer;
-				}
-				.controls {
-					margin-bottom: 20px;
-				}
-				.editable {
-					min-width: 50px;
-					min-height: 20px;
-				}
-			</style>
-		</head>
-		<body>
-			<h1>テーブル編集</h1>
-			<div class="controls">
-				<button id="addRow">行を追加</button>
-				<button id="addColumn">列を追加</button>
-				<button id="saveTable">保存</button>
-			</div>
-			<div id="tableContainer"></div>
-			
-			<script>
-				// テーブルデータを取得
-				const tableData = ${tableDataJson};
-				
-				// VSCodeのWebviewオブジェクト
-				const vscode = acquireVsCodeApi();
-				
-				// テーブルを描画
-				function renderTable() {
-					const container = document.getElementById('tableContainer');
-					container.innerHTML = '';
-					
-					const table = document.createElement('table');
-					
-					// ヘッダー行
-					const thead = document.createElement('thead');
-					const headerRow = document.createElement('tr');
-					
-					tableData.headers.forEach((header, index) => {
-						const th = document.createElement('th');
-						th.contentEditable = 'true';
-						th.className = 'editable';
-						th.textContent = header;
-						th.dataset.col = index;
-						headerRow.appendChild(th);
-					});
-					
-					thead.appendChild(headerRow);
-					table.appendChild(thead);
-					
-					// データ行
-					const tbody = document.createElement('tbody');
-					
-					tableData.rows.forEach((row, rowIndex) => {
-						const tr = document.createElement('tr');
-						
-						row.forEach((cell, colIndex) => {
-							const td = document.createElement('td');
-							td.contentEditable = 'true';
-							td.className = 'editable';
-							td.textContent = cell;
-							td.dataset.row = rowIndex;
-							td.dataset.col = colIndex;
-							tr.appendChild(td);
-						});
-						
-						tbody.appendChild(tr);
-					});
-					
-					table.appendChild(tbody);
-					container.appendChild(table);
-				}
-				
-				// 行を追加
-				document.getElementById('addRow').addEventListener('click', () => {
-					const newRow = Array(tableData.headers.length).fill('');
-					tableData.rows.push(newRow);
-					renderTable();
-				});
-				
-				// 列を追加
-				document.getElementById('addColumn').addEventListener('click', () => {
-					tableData.headers.push('新しい列');
-					tableData.rows.forEach(row => row.push(''));
-					renderTable();
-				});
-				
-				// テーブルを保存
-				document.getElementById('saveTable').addEventListener('click', () => {
-					try {
-						// 編集されたテーブルデータを収集
-						const headers = Array.from(document.querySelectorAll('th')).map(th => th.textContent || '');
-						
-						const rows = [];
-						const rowElements = document.querySelectorAll('tbody tr');
-						rowElements.forEach(row => {
-							const cells = Array.from(row.querySelectorAll('td')).map(td => td.textContent || '');
-							rows.push(cells);
-						});
-						
-						// 列数を統一する
-						const maxColumns = Math.max(
-							headers.length,
-							...rows.map(row => row.length)
-						);
-						
-						// ヘッダーの列数を調整
-						while (headers.length < maxColumns) {
-							headers.push('');
-						}
-						
-						// 各行の列数を調整
-						rows.forEach(row => {
-							while (row.length < maxColumns) {
-								row.push('');
-							}
-						});
-						
-						// 更新されたテーブルデータ
-						const updatedTableData = {
-							startLine: tableData.startLine,
-							endLine: tableData.endLine,
-							headers,
-							rows
-						};
-						
-						console.log('Sending data to VS Code:', updatedTableData);
-						
-						// VSCodeに更新を通知
-						vscode.postMessage({
-							command: 'updateTable',
-							tableData: updatedTableData
-						});
-					} catch (error) {
-						console.error('Error saving table:', error);
-					}
-				});
-				
-				// 初期表示
-				renderTable();
-			</script>
-		</body>
-		</html>`;
+		
+		// HTMLファイルのパスを取得
+		const htmlPath = vscode.Uri.joinPath(this._extensionUri, 'media', 'tableEditor.html');
+		
+		// HTMLファイルを読み込む
+		let htmlContent = fs.readFileSync(htmlPath.fsPath, 'utf8');
+		
+		// テーブルデータのプレースホルダーを置換
+		htmlContent = htmlContent.replace('TABLE_DATA_PLACEHOLDER', tableDataJson);
+		
+		// Webviewで使用するリソースのURIを取得
+		const scriptUri = webview.asWebviewUri(vscode.Uri.joinPath(this._extensionUri, 'media', 'tableEditor.js'));
+		const styleUri = webview.asWebviewUri(vscode.Uri.joinPath(this._extensionUri, 'media', 'tableEditor.css'));
+		
+		// CSPを設定
+		const nonce = getNonce();
+		const csp = `
+			default-src 'none';
+			style-src ${webview.cspSource} 'unsafe-inline';
+			script-src 'nonce-${nonce}' 'unsafe-eval';
+			img-src ${webview.cspSource} https:;
+		`;
+		
+		// HTMLにCSPとnonceを追加
+		htmlContent = htmlContent.replace(
+			'<head>',
+			`<head>
+			<meta http-equiv="Content-Security-Policy" content="${csp}">
+			<meta name="viewport" content="width=device-width, initial-scale=1.0">`
+		);
+		
+		// スクリプトタグにnonceを追加
+		htmlContent = htmlContent.replace(
+			'<script>',
+			`<script nonce="${nonce}">`
+		);
+		
+		return htmlContent;
 	}
 
 	private _updateTableInEditor(updatedTableData: TableData) {
@@ -720,6 +587,16 @@ function padEndWithFullWidth(str: string, width: number): string {
 	// 必要なスペースの数
 	const paddingSize = width - currentWidth;
 	return str + ' '.repeat(paddingSize);
+}
+
+// ランダムなnonceを生成する関数
+function getNonce() {
+	let text = '';
+	const possible = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+	for (let i = 0; i < 32; i++) {
+		text += possible.charAt(Math.floor(Math.random() * possible.length));
+	}
+	return text;
 }
 
 // This method is called when your extension is deactivated
