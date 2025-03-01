@@ -87,6 +87,11 @@
             z-index: 100;
         }
         
+        .drag-preview.delete {
+            background-color: rgba(236, 75, 75, 0.2);
+            border: 1px dashed rgba(236, 75, 75, 0.5);
+        }
+        
         .drag-preview-text {
             position: absolute;
             background-color: white;
@@ -97,6 +102,10 @@
             white-space: nowrap;
             pointer-events: none;
             z-index: 101;
+        }
+        
+        .drag-preview-text.delete {
+            color: #d9534f;
         }
         
         /* デバッグパネル */
@@ -170,7 +179,6 @@
         
         // デバッグ用のグローバル関数
         window.debugLog = function(message, data) {
-
             const container = document.getElementById('debug-log-container');
             const logEntry = document.createElement('pre');
             logEntry.className = 'debug-log';
@@ -225,7 +233,6 @@
 
         // テーブルエディタコンポーネント
         const TableEditor = () => {
-            debug('TableEditorコンポーネントが初期化されました');
             const [tableData, setTableData] = React.useState(initialTableData);
             const [dragState, setDragState] = React.useState({
                 isDragging: false,
@@ -235,7 +242,8 @@
                 currentY: 0,
                 currentX: 0,
                 rowCount: 0,
-                columnCount: 0
+                columnCount: 0,
+                isDelete: false // 削除モードかどうか
             });
             
             // 最新のドラッグ状態を参照するためのref
@@ -287,49 +295,46 @@
             };
             
             // 行を削除
-            const deleteRow = (rowIndex) => {
-                debug(`${rowIndex}行目を削除します`);
-                if (tableData.rows.length <= 1) {
-                    debug('最低1行は必要なため削除できません');
-                    return;
+            const deleteRows = (count = 1) => {
+                debug(`${count}行削除します`);
+                
+                // 最低1行は残す
+                const remainingRows = Math.max(1, tableData.rows.length - count);
+                
+                if (remainingRows >= 1) {
+                    const newRows = [...tableData.rows].slice(0, remainingRows);
+                    
+                    setTableData({
+                        ...tableData,
+                        rows: newRows
+                    });
                 }
-                
-                const newRows = [...tableData.rows];
-                newRows.splice(rowIndex, 1);
-                
-                setTableData({
-                    ...tableData,
-                    rows: newRows
-                });
             };
             
             // 列を削除
-            const deleteColumn = (colIndex) => {
-                debug(`${colIndex}列目を削除します`);
-                if (tableData.headers.length <= 1) {
-                    debug('最低1列は必要なため削除できません');
-                    return;
+            const deleteColumns = (count = 1) => {
+                debug(`${count}列削除します`);
+                
+                // 最低1列は残す
+                const remainingColumns = Math.max(1, tableData.headers.length - count);
+                
+                if (remainingColumns >= 1) {
+                    const newHeaders = [...tableData.headers].slice(0, remainingColumns);
+                    
+                    const newRows = tableData.rows.map(row => {
+                        return [...row].slice(0, remainingColumns);
+                    });
+                    
+                    setTableData({
+                        ...tableData,
+                        headers: newHeaders,
+                        rows: newRows
+                    });
                 }
-                
-                const newHeaders = [...tableData.headers];
-                newHeaders.splice(colIndex, 1);
-                
-                const newRows = tableData.rows.map(row => {
-                    const newRow = [...row];
-                    newRow.splice(colIndex, 1);
-                    return newRow;
-                });
-                
-                setTableData({
-                    ...tableData,
-                    headers: newHeaders,
-                    rows: newRows
-                });
             };
 
             // テーブルを保存
             const saveTable = () => {
-                debug('テーブルを保存します');
                 try {
                     // 編集されたテーブルデータを収集
                     const headers = Array.from(document.querySelectorAll('th .editable')).map(th => {
@@ -373,10 +378,7 @@
                         rows
                     };
                     
-                    debug('VS Codeに更新を通知します', {
-                        headers: headers.length,
-                        rows: rows.length
-                    });
+                    debug('テーブルを保存します', updatedTableData);
                     
                     // VSCodeに更新を通知
                     vscode.postMessage({
@@ -420,7 +422,8 @@
                     currentY: startY,
                     currentX: startX,
                     rowCount: 0,
-                    columnCount: 0
+                    columnCount: 0,
+                    isDelete: false
                 });
                 
                 // グローバルのマウスイベントを追加
@@ -438,21 +441,53 @@
                 // 行数または列数を計算
                 let rowCount = 0;
                 let columnCount = 0;
+                let isDelete = false;
                 
                 if (dragStateRef.current.type === 'row') {
-                    // 20pxごとに1行として計算
-                    rowCount = Math.max(1, Math.floor((currentY - dragStateRef.current.startY) / 20));
+                    const diffY = currentY - dragStateRef.current.startY;
+                    
+                    if (diffY < 0) {
+                        // 上方向のドラッグは削除モード
+                        isDelete = true;
+                        // 20pxごとに1行として計算（絶対値を使用）
+                        rowCount = Math.min(
+                            tableData.rows.length - 1, // 最低1行は残す
+                            Math.max(1, Math.floor(Math.abs(diffY) / 20))
+                        );
+                    } else {
+                        // 下方向のドラッグは追加モード
+                        isDelete = false;
+                        // 20pxごとに1行として計算
+                        rowCount = Math.max(1, Math.floor(diffY / 20));
+                    }
                 } else if (dragStateRef.current.type === 'column') {
-                    // 20pxごとに1列として計算
-                    columnCount = Math.max(1, Math.floor((currentX - dragStateRef.current.startX) / 20));
+                    const diffX = currentX - dragStateRef.current.startX;
+                    
+                    if (diffX < 0) {
+                        // 左方向のドラッグは削除モード
+                        isDelete = true;
+                        // 20pxごとに1列として計算（絶対値を使用）
+                        columnCount = Math.min(
+                            tableData.headers.length - 1, // 最低1列は残す
+                            Math.max(1, Math.floor(Math.abs(diffX) / 20))
+                        );
+                    } else {
+                        // 右方向のドラッグは追加モード
+                        isDelete = false;
+                        // 20pxごとに1列として計算
+                        columnCount = Math.max(1, Math.floor(diffX / 20));
+                    }
                 }
                 
                 // 値が変わった場合のみデバッグログを出力
-                if (rowCount !== dragStateRef.current.rowCount || columnCount !== dragStateRef.current.columnCount) {
+                if (rowCount !== dragStateRef.current.rowCount || 
+                    columnCount !== dragStateRef.current.columnCount ||
+                    isDelete !== dragStateRef.current.isDelete) {
                     debug('ドラッグ中', { 
                         type: dragStateRef.current.type, 
                         rowCount, 
                         columnCount,
+                        isDelete,
                         currentX,
                         currentY
                     });
@@ -463,7 +498,8 @@
                     currentY,
                     currentX,
                     rowCount,
-                    columnCount
+                    columnCount,
+                    isDelete
                 });
             };
             
@@ -478,15 +514,36 @@
                     type: currentDragState.type,
                     rowCount: currentDragState.rowCount,
                     columnCount: currentDragState.columnCount,
+                    isDelete: currentDragState.isDelete,
                     currentX: currentDragState.currentX,
                     currentY: currentDragState.currentY
                 });
                 
-                // 行または列を追加
-                if (currentDragState.type === 'row' && currentDragState.rowCount > 0) {
-                    addRows(currentDragState.rowCount);
-                } else if (currentDragState.type === 'column' && currentDragState.columnCount > 0) {
-                    addColumns(currentDragState.columnCount);
+                // 行または列を追加/削除
+                if (currentDragState.type === 'row') {
+                    if (currentDragState.isDelete) {
+                        // 行を削除
+                        if (currentDragState.rowCount > 0) {
+                            deleteRows(currentDragState.rowCount);
+                        }
+                    } else {
+                        // 行を追加
+                        if (currentDragState.rowCount > 0) {
+                            addRows(currentDragState.rowCount);
+                        }
+                    }
+                } else if (currentDragState.type === 'column') {
+                    if (currentDragState.isDelete) {
+                        // 列を削除
+                        if (currentDragState.columnCount > 0) {
+                            deleteColumns(currentDragState.columnCount);
+                        }
+                    } else {
+                        // 列を追加
+                        if (currentDragState.columnCount > 0) {
+                            addColumns(currentDragState.columnCount);
+                        }
+                    }
                 }
                 
                 // ドラッグ状態をリセット
@@ -498,7 +555,8 @@
                     currentY: 0,
                     currentX: 0,
                     rowCount: 0,
-                    columnCount: 0
+                    columnCount: 0,
+                    isDelete: false
                 });
                 
                 // グローバルのマウスイベントを削除
@@ -511,25 +569,53 @@
                 if (!dragState.isDragging) return { display: 'none' };
                 
                 if (dragState.type === 'row') {
-                    const tableRect = tableContainerRef.current.getBoundingClientRect();
-                    const rowZoneRect = rowZoneRef.current.getBoundingClientRect();
-                    
-                    return {
-                        left: tableRect.left,
-                        top: rowZoneRect.bottom,
-                        width: tableRect.width,
-                        height: dragState.rowCount * 20
-                    };
+                    if (dragState.isDelete) {
+                        // 削除プレビュー（テーブルの下部から上に向かって）
+                        const tableRect = tableContainerRef.current.getBoundingClientRect();
+                        
+                        return {
+                            left: tableRect.left,
+                            bottom: tableRect.bottom - 20, // 行追加ゾーンの高さを除く
+                            width: tableRect.width,
+                            height: dragState.rowCount * 20,
+                            top: 'auto'
+                        };
+                    } else {
+                        // 追加プレビュー
+                        const tableRect = tableContainerRef.current.getBoundingClientRect();
+                        const rowZoneRect = rowZoneRef.current.getBoundingClientRect();
+                        
+                        return {
+                            left: tableRect.left,
+                            top: rowZoneRect.bottom,
+                            width: tableRect.width,
+                            height: dragState.rowCount * 20
+                        };
+                    }
                 } else if (dragState.type === 'column') {
-                    const tableRect = tableContainerRef.current.getBoundingClientRect();
-                    const columnZoneRect = columnZoneRef.current.getBoundingClientRect();
-                    
-                    return {
-                        left: columnZoneRect.right,
-                        top: tableRect.top,
-                        width: dragState.columnCount * 20,
-                        height: tableRect.height - 20 // 行追加ゾーンの高さを除く
-                    };
+                    if (dragState.isDelete) {
+                        // 削除プレビュー（テーブルの右端から左に向かって）
+                        const tableRect = tableContainerRef.current.getBoundingClientRect();
+                        
+                        return {
+                            right: tableRect.right,
+                            top: tableRect.top,
+                            width: dragState.columnCount * 20,
+                            height: tableRect.height - 20, // 行追加ゾーンの高さを除く
+                            left: 'auto'
+                        };
+                    } else {
+                        // 追加プレビュー
+                        const tableRect = tableContainerRef.current.getBoundingClientRect();
+                        const columnZoneRect = columnZoneRef.current.getBoundingClientRect();
+                        
+                        return {
+                            left: columnZoneRect.right,
+                            top: tableRect.top,
+                            width: dragState.columnCount * 20,
+                            height: tableRect.height - 20 // 行追加ゾーンの高さを除く
+                        };
+                    }
                 }
                 
                 return { display: 'none' };
@@ -548,9 +634,17 @@
             // ドラッグプレビューテキストを取得
             const getDragPreviewText = () => {
                 if (dragState.type === 'row') {
-                    return `${dragState.rowCount}行追加`;
+                    if (dragState.isDelete) {
+                        return `${dragState.rowCount}行削除`;
+                    } else {
+                        return `${dragState.rowCount}行追加`;
+                    }
                 } else if (dragState.type === 'column') {
-                    return `${dragState.columnCount}列追加`;
+                    if (dragState.isDelete) {
+                        return `${dragState.columnCount}列削除`;
+                    } else {
+                        return `${dragState.columnCount}列追加`;
+                    }
                 }
                 return '';
             };
@@ -590,9 +684,9 @@
                             ref={rowZoneRef}
                             className="add-row-zone"
                             onMouseDown={(e) => handleDragStart(e, 'row')}
-                            title="ドラッグして複数行を追加"
+                            title="ドラッグして行を追加/削除"
                         >
-                            + 行を追加
+                            + 行を追加/削除
                         </div>
                         
                         {/* 列追加ゾーン */}
@@ -600,20 +694,20 @@
                             ref={columnZoneRef}
                             className="add-column-zone"
                             onMouseDown={(e) => handleDragStart(e, 'column')}
-                            title="ドラッグして複数列を追加"
+                            title="ドラッグして列を追加/削除"
                         >
-                            + 列を追加
+                            + 列を追加/削除
                         </div>
                         
                         {/* ドラッグプレビュー */}
                         {dragState.isDragging && (
                             <>
                                 <div 
-                                    className="drag-preview"
+                                    className={`drag-preview ${dragState.isDelete ? 'delete' : ''}`}
                                     style={getDragPreviewStyle()}
                                 ></div>
                                 <div 
-                                    className="drag-preview-text"
+                                    className={`drag-preview-text ${dragState.isDelete ? 'delete' : ''}`}
                                     style={getDragPreviewTextStyle()}
                                 >
                                     {getDragPreviewText()}
