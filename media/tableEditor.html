@@ -51,8 +51,9 @@
             display: flex;
             align-items: center;
             justify-content: center;
-            cursor: pointer;
+            cursor: ns-resize; /* 上下のリサイズカーソル */
             color: #666;
+            position: relative;
         }
         
         .add-column-zone {
@@ -66,7 +67,7 @@
             display: flex;
             align-items: center;
             justify-content: center;
-            cursor: pointer;
+            cursor: ew-resize; /* 左右のリサイズカーソル */
             color: #666;
             writing-mode: vertical-rl;
             text-orientation: mixed;
@@ -76,6 +77,76 @@
             background-color: #e9e9e9;
             color: #333;
         }
+        
+        /* ドラッグ中のプレビュー */
+        .drag-preview {
+            position: absolute;
+            background-color: rgba(75, 123, 236, 0.2);
+            border: 1px dashed rgba(75, 123, 236, 0.5);
+            pointer-events: none;
+            z-index: 100;
+        }
+        
+        .drag-preview-text {
+            position: absolute;
+            background-color: white;
+            border: 1px solid #ccc;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-size: 12px;
+            white-space: nowrap;
+            pointer-events: none;
+            z-index: 101;
+        }
+        
+        /* デバッグパネル */
+        .debug-panel {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background-color: #f0f0f0;
+            border-top: 1px solid #ccc;
+            padding: 10px;
+            font-family: monospace;
+            font-size: 12px;
+            max-height: 150px;
+            overflow-y: auto;
+            z-index: 1000;
+            display: none;
+        }
+        
+        .debug-panel.visible {
+            display: block;
+        }
+        
+        .debug-log {
+            margin: 0;
+            padding: 2px 0;
+        }
+        
+        .debug-controls {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 5px;
+        }
+        
+        .debug-toggle {
+            position: fixed;
+            bottom: 10px;
+            right: 10px;
+            width: 30px;
+            height: 30px;
+            background-color: #4B7BEC;
+            color: white;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            z-index: 1001;
+            font-weight: bold;
+        }
     </style>
     <!-- React, ReactDOM, Babel CDNを追加 -->
     <script src="https://unpkg.com/react@17/umd/react.development.js" crossorigin></script>
@@ -84,43 +155,142 @@
 </head>
 <body>
     <div id="root"></div>
+    <div id="debug-toggle" class="debug-toggle">D</div>
+    <div id="debug-panel" class="debug-panel">
+        <div class="debug-controls">
+            <span>デバッグログ</span>
+            <button id="clear-debug" style="padding: 2px 5px; font-size: 12px;">クリア</button>
+        </div>
+        <div id="debug-log-container"></div>
+    </div>
 
     <!-- テーブルデータをグローバル変数として定義 -->
     <script>
         const initialTableData = TABLE_DATA_PLACEHOLDER;
+        
+        // デバッグ用のグローバル関数
+        window.debugLog = function(message, data) {
+
+            const container = document.getElementById('debug-log-container');
+            const logEntry = document.createElement('pre');
+            logEntry.className = 'debug-log';
+            
+            const timestamp = new Date().toLocaleTimeString();
+            let logMessage = `[${timestamp}] ${message}`;
+            
+            if (data !== undefined) {
+                if (typeof data === 'object') {
+                    logMessage += ': ' + JSON.stringify(data, null, 2);
+                } else {
+                    logMessage += ': ' + data;
+                }
+            }
+            
+            logEntry.textContent = logMessage;
+            container.appendChild(logEntry);
+            container.scrollTop = container.scrollHeight;
+            
+            // VS Codeにもデバッグメッセージを送信
+            if (window.vscode) {
+                window.vscode.postMessage({
+                    command: 'debug',
+                    message: logMessage
+                });
+            }
+            
+            // コンソールにも出力
+            console.log(logMessage);
+        };
+        
+        // デバッグパネルの表示/非表示を切り替え
+        document.getElementById('debug-toggle').addEventListener('click', function() {
+            const panel = document.getElementById('debug-panel');
+            panel.classList.toggle('visible');
+        });
+        
+        // デバッグログをクリア
+        document.getElementById('clear-debug').addEventListener('click', function() {
+            document.getElementById('debug-log-container').innerHTML = '';
+            window.debugLog('ログをクリアしました');
+        });
     </script>
 
     <!-- テーブルエディタのReactコード -->
     <script type="text/babel">
         // VSCodeのWebviewオブジェクト
         const vscode = acquireVsCodeApi();
+        
+        // デバッグログ用のショートカット
+        const debug = window.debugLog;
 
         // テーブルエディタコンポーネント
         const TableEditor = () => {
+            debug('TableEditorコンポーネントが初期化されました');
             const [tableData, setTableData] = React.useState(initialTableData);
+            const [dragState, setDragState] = React.useState({
+                isDragging: false,
+                type: null, // 'row' または 'column'
+                startY: 0,
+                startX: 0,
+                currentY: 0,
+                currentX: 0,
+                rowCount: 0,
+                columnCount: 0
+            });
+            
+            // 最新のドラッグ状態を参照するためのref
+            const dragStateRef = React.useRef(dragState);
+            
+            // dragStateが更新されたらrefも更新
+            React.useEffect(() => {
+                dragStateRef.current = dragState;
+            }, [dragState]);
+            
+            const tableContainerRef = React.useRef(null);
+            const rowZoneRef = React.useRef(null);
+            const columnZoneRef = React.useRef(null);
+            
+            React.useEffect(() => {
+                debug('テーブルデータが更新されました', {
+                    headers: tableData.headers.length,
+                    rows: tableData.rows.length
+                });
+            }, [tableData]);
 
             // 行を追加
-            const addRow = () => {
-                const newRow = Array(tableData.headers.length).fill('');
+            const addRows = (count = 1) => {
+                debug(`${count}行追加します`);
+                const newRows = [];
+                for (let i = 0; i < count; i++) {
+                    newRows.push(Array(tableData.headers.length).fill(''));
+                }
+                
                 setTableData({
                     ...tableData,
-                    rows: [...tableData.rows, newRow]
+                    rows: [...tableData.rows, ...newRows]
                 });
             };
 
             // 列を追加
-            const addColumn = () => {
+            const addColumns = (count = 1) => {
+                debug(`${count}列追加します`);
+                const newHeaders = [];
+                for (let i = 0; i < count; i++) {
+                    newHeaders.push('新しい列');
+                }
+                
                 setTableData({
                     ...tableData,
-                    headers: [...tableData.headers, '新しい列'],
-                    rows: tableData.rows.map(row => [...row, ''])
+                    headers: [...tableData.headers, ...newHeaders],
+                    rows: tableData.rows.map(row => [...row, ...Array(count).fill('')])
                 });
             };
             
             // 行を削除
             const deleteRow = (rowIndex) => {
+                debug(`${rowIndex}行目を削除します`);
                 if (tableData.rows.length <= 1) {
-                    // 最低1行は残す
+                    debug('最低1行は必要なため削除できません');
                     return;
                 }
                 
@@ -135,8 +305,9 @@
             
             // 列を削除
             const deleteColumn = (colIndex) => {
+                debug(`${colIndex}列目を削除します`);
                 if (tableData.headers.length <= 1) {
-                    // 最低1列は残す
+                    debug('最低1列は必要なため削除できません');
                     return;
                 }
                 
@@ -158,6 +329,7 @@
 
             // テーブルを保存
             const saveTable = () => {
+                debug('テーブルを保存します');
                 try {
                     // 編集されたテーブルデータを収集
                     const headers = Array.from(document.querySelectorAll('th .editable')).map(th => {
@@ -201,7 +373,10 @@
                         rows
                     };
                     
-                    console.log('Sending data to VS Code:', updatedTableData);
+                    debug('VS Codeに更新を通知します', {
+                        headers: headers.length,
+                        rows: rows.length
+                    });
                     
                     // VSCodeに更新を通知
                     vscode.postMessage({
@@ -209,6 +384,7 @@
                         tableData: updatedTableData
                     });
                 } catch (error) {
+                    debug('テーブル保存中にエラーが発生しました', error.message);
                     console.error('Error saving table:', error);
                 }
             };
@@ -226,6 +402,158 @@
                     />
                 );
             };
+            
+            // ドラッグ開始ハンドラ
+            const handleDragStart = (e, type) => {
+                e.preventDefault();
+                
+                const startY = e.clientY;
+                const startX = e.clientX;
+                
+                debug('ドラッグを開始しました', { type, startX, startY });
+                
+                setDragState({
+                    isDragging: true,
+                    type,
+                    startY,
+                    startX,
+                    currentY: startY,
+                    currentX: startX,
+                    rowCount: 0,
+                    columnCount: 0
+                });
+                
+                // グローバルのマウスイベントを追加
+                document.addEventListener('mousemove', handleDragMove);
+                document.addEventListener('mouseup', handleDragEnd);
+            };
+            
+            // ドラッグ移動ハンドラ
+            const handleDragMove = (e) => {
+                if (!dragStateRef.current.isDragging) return;
+                
+                const currentY = e.clientY;
+                const currentX = e.clientX;
+                
+                // 行数または列数を計算
+                let rowCount = 0;
+                let columnCount = 0;
+                
+                if (dragStateRef.current.type === 'row') {
+                    // 20pxごとに1行として計算
+                    rowCount = Math.max(1, Math.floor((currentY - dragStateRef.current.startY) / 20));
+                } else if (dragStateRef.current.type === 'column') {
+                    // 20pxごとに1列として計算
+                    columnCount = Math.max(1, Math.floor((currentX - dragStateRef.current.startX) / 20));
+                }
+                
+                // 値が変わった場合のみデバッグログを出力
+                if (rowCount !== dragStateRef.current.rowCount || columnCount !== dragStateRef.current.columnCount) {
+                    debug('ドラッグ中', { 
+                        type: dragStateRef.current.type, 
+                        rowCount, 
+                        columnCount,
+                        currentX,
+                        currentY
+                    });
+                }
+                
+                setDragState({
+                    ...dragStateRef.current,
+                    currentY,
+                    currentX,
+                    rowCount,
+                    columnCount
+                });
+            };
+            
+            // ドラッグ終了ハンドラ
+            const handleDragEnd = (e) => {
+                // 現在のドラッグ状態を取得
+                const currentDragState = dragStateRef.current;
+                
+                if (!currentDragState.isDragging) return;
+                
+                debug('ドラッグを終了しました', {
+                    type: currentDragState.type,
+                    rowCount: currentDragState.rowCount,
+                    columnCount: currentDragState.columnCount,
+                    currentX: currentDragState.currentX,
+                    currentY: currentDragState.currentY
+                });
+                
+                // 行または列を追加
+                if (currentDragState.type === 'row' && currentDragState.rowCount > 0) {
+                    addRows(currentDragState.rowCount);
+                } else if (currentDragState.type === 'column' && currentDragState.columnCount > 0) {
+                    addColumns(currentDragState.columnCount);
+                }
+                
+                // ドラッグ状態をリセット
+                setDragState({
+                    isDragging: false,
+                    type: null,
+                    startY: 0,
+                    startX: 0,
+                    currentY: 0,
+                    currentX: 0,
+                    rowCount: 0,
+                    columnCount: 0
+                });
+                
+                // グローバルのマウスイベントを削除
+                document.removeEventListener('mousemove', handleDragMove);
+                document.removeEventListener('mouseup', handleDragEnd);
+            };
+            
+            // ドラッグプレビューのスタイルを計算
+            const getDragPreviewStyle = () => {
+                if (!dragState.isDragging) return { display: 'none' };
+                
+                if (dragState.type === 'row') {
+                    const tableRect = tableContainerRef.current.getBoundingClientRect();
+                    const rowZoneRect = rowZoneRef.current.getBoundingClientRect();
+                    
+                    return {
+                        left: tableRect.left,
+                        top: rowZoneRect.bottom,
+                        width: tableRect.width,
+                        height: dragState.rowCount * 20
+                    };
+                } else if (dragState.type === 'column') {
+                    const tableRect = tableContainerRef.current.getBoundingClientRect();
+                    const columnZoneRect = columnZoneRef.current.getBoundingClientRect();
+                    
+                    return {
+                        left: columnZoneRect.right,
+                        top: tableRect.top,
+                        width: dragState.columnCount * 20,
+                        height: tableRect.height - 20 // 行追加ゾーンの高さを除く
+                    };
+                }
+                
+                return { display: 'none' };
+            };
+            
+            // ドラッグプレビューテキストのスタイルを計算
+            const getDragPreviewTextStyle = () => {
+                if (!dragState.isDragging) return { display: 'none' };
+                
+                return {
+                    left: dragState.currentX + 10,
+                    top: dragState.currentY + 10
+                };
+            };
+            
+            // ドラッグプレビューテキストを取得
+            const getDragPreviewText = () => {
+                if (dragState.type === 'row') {
+                    return `${dragState.rowCount}行追加`;
+                } else if (dragState.type === 'column') {
+                    return `${dragState.columnCount}列追加`;
+                }
+                return '';
+            };
 
             return (
                 <div>
@@ -233,7 +561,7 @@
                         <button onClick={saveTable}>保存</button>
                     </div>
                     
-                    <div className="table-container">
+                    <div className="table-container" ref={tableContainerRef}>
                         <table>
                             <thead>
                                 <tr>
@@ -259,21 +587,39 @@
                         
                         {/* 行追加ゾーン */}
                         <div 
+                            ref={rowZoneRef}
                             className="add-row-zone"
-                            onClick={addRow}
-                            title="クリックして行を追加"
+                            onMouseDown={(e) => handleDragStart(e, 'row')}
+                            title="ドラッグして複数行を追加"
                         >
                             + 行を追加
                         </div>
                         
                         {/* 列追加ゾーン */}
                         <div 
+                            ref={columnZoneRef}
                             className="add-column-zone"
-                            onClick={addColumn}
-                            title="クリックして列を追加"
+                            onMouseDown={(e) => handleDragStart(e, 'column')}
+                            title="ドラッグして複数列を追加"
                         >
                             + 列を追加
                         </div>
+                        
+                        {/* ドラッグプレビュー */}
+                        {dragState.isDragging && (
+                            <>
+                                <div 
+                                    className="drag-preview"
+                                    style={getDragPreviewStyle()}
+                                ></div>
+                                <div 
+                                    className="drag-preview-text"
+                                    style={getDragPreviewTextStyle()}
+                                >
+                                    {getDragPreviewText()}
+                                </div>
+                            </>
+                        )}
                     </div>
                 </div>
             );
@@ -284,6 +630,18 @@
             <TableEditor />,
             document.getElementById('root')
         );
+        
+        // 初期化完了のログ
+        debug('テーブルエディタが初期化されました', {
+            headers: initialTableData.headers.length,
+            rows: initialTableData.rows.length
+        });
+        
+        // メッセージハンドラを登録
+        window.addEventListener('message', event => {
+            const message = event.data;
+            debug('VS Codeからメッセージを受信しました', message);
+        });
     </script>
 </body>
 </html> 

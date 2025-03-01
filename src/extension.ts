@@ -268,6 +268,7 @@ class TableEditorPanel {
 	private _disposables: vscode.Disposable[] = [];
 	private _tableData: TableData;
 	private _editor: vscode.TextEditor;
+	private _outputChannel: vscode.OutputChannel;
 
 	public static createOrShow(extensionUri: vscode.Uri, tableData: TableData, editor: vscode.TextEditor) {
 		// 常に右側のビューカラムに表示するように設定
@@ -326,16 +327,15 @@ class TableEditorPanel {
 
 		// メッセージ受信時のイベント
 		this._panel.webview.onDidReceiveMessage(
-			async message => {
-				try {
-					switch (message.command) {
-						case 'updateTable':
-							await this._updateTableInEditor(message.tableData);
-							return;
-					}
-				} catch (error) {
-					console.error('メッセージ処理中にエラーが発生しました:', error);
-					vscode.window.showErrorMessage(`メッセージ処理中にエラーが発生しました: ${error}`);
+			message => {
+				switch (message.command) {
+					case 'updateTable':
+						this._updateTable(message.tableData);
+						return;
+					case 'debug':
+						// デバッグメッセージを出力チャネルに表示
+						this._outputChannel.appendLine(message.message);
+						return;
 				}
 			},
 			null,
@@ -417,7 +417,7 @@ class TableEditorPanel {
 		return htmlContent;
 	}
 
-	private _updateTableInEditor(updatedTableData: TableData) {
+	private _updateTable(updatedTableData: TableData) {
 		try {
 			// エディタが有効かどうかを確認
 			if (!this._editor || !this._editor.document || this._editor.document.isClosed) {
