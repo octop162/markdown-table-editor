@@ -4,20 +4,35 @@
   "description": "",
   "version": "0.0.1",
   "engines": {
-    "vscode": "^1.97.0"
+    "vscode": "^1.96.0"
   },
   "categories": [
     "Other"
   ],
-  "activationEvents": [],
+  "activationEvents": [
+    "onLanguage:markdown"
+  ],
   "main": "./dist/extension.js",
   "contributes": {
     "commands": [
       {
         "command": "beautiful-markdown-editor.helloWorld",
         "title": "Hello World"
+      },
+      {
+        "command": "beautiful-markdown-editor.editTable",
+        "title": "Markdownテーブルを編集"
+      },
+      {
+        "command": "beautiful-markdown-editor.formatTable",
+        "title": "Markdownテーブルを整形"
       }
-    ]
+    ],
+    "languages": [{
+      "id": "markdown",
+      "aliases": ["Markdown", "markdown"],
+      "extensions": [".md",".markdown",".mdown",".mkdn"]
+    }]
   },
   "scripts": {
     "vscode:prepublish": "npm run package",
