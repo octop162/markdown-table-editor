@@ -35,6 +35,47 @@
             min-height: 20px;
             white-space: pre-wrap; /* 改行を表示するために追加 */
         }
+        
+        /* テーブル下端と右端の追加エリア */
+        .table-container {
+            position: relative;
+            display: inline-block;
+        }
+        
+        .add-row-zone {
+            height: 20px;
+            background-color: #f9f9f9;
+            border: 1px dashed #ccc;
+            margin-top: -10px;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            color: #666;
+        }
+        
+        .add-column-zone {
+            width: 20px;
+            background-color: #f9f9f9;
+            border: 1px dashed #ccc;
+            position: absolute;
+            top: 0;
+            right: -20px;
+            bottom: 20px; /* 行追加ゾーンの高さ分調整 */
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            color: #666;
+            writing-mode: vertical-rl;
+            text-orientation: mixed;
+        }
+        
+        .add-row-zone:hover, .add-column-zone:hover {
+            background-color: #e9e9e9;
+            color: #333;
+        }
     </style>
     <!-- React, ReactDOM, Babel CDNを追加 -->
     <script src="https://unpkg.com/react@17/umd/react.development.js" crossorigin></script>
@@ -73,6 +114,45 @@
                     ...tableData,
                     headers: [...tableData.headers, '新しい列'],
                     rows: tableData.rows.map(row => [...row, ''])
+                });
+            };
+            
+            // 行を削除
+            const deleteRow = (rowIndex) => {
+                if (tableData.rows.length <= 1) {
+                    // 最低1行は残す
+                    return;
+                }
+                
+                const newRows = [...tableData.rows];
+                newRows.splice(rowIndex, 1);
+                
+                setTableData({
+                    ...tableData,
+                    rows: newRows
+                });
+            };
+            
+            // 列を削除
+            const deleteColumn = (colIndex) => {
+                if (tableData.headers.length <= 1) {
+                    // 最低1列は残す
+                    return;
+                }
+                
+                const newHeaders = [...tableData.headers];
+                newHeaders.splice(colIndex, 1);
+                
+                const newRows = tableData.rows.map(row => {
+                    const newRow = [...row];
+                    newRow.splice(colIndex, 1);
+                    return newRow;
+                });
+                
+                setTableData({
+                    ...tableData,
+                    headers: newHeaders,
+                    rows: newRows
                 });
             };
 
@@ -149,34 +229,54 @@
 
             return (
                 <div>
-                    <h1>テーブル編集</h1>
                     <div className="controls">
                         <button onClick={addRow}>行を追加</button>
                         <button onClick={addColumn}>列を追加</button>
                         <button onClick={saveTable}>保存</button>
                     </div>
-                    <table>
-                        <thead>
-                            <tr>
-                                {tableData.headers.map((header, index) => (
-                                    <th key={`header-${index}`}>
-                                        <EditableCell content={header} />
-                                    </th>
-                                ))}
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {tableData.rows.map((row, rowIndex) => (
-                                <tr key={`row-${rowIndex}`}>
-                                    {row.map((cell, cellIndex) => (
-                                        <td key={`cell-${rowIndex}-${cellIndex}`}>
-                                            <EditableCell content={cell} />
-                                        </td>
+                    
+                    <div className="table-container">
+                        <table>
+                            <thead>
+                                <tr>
+                                    {tableData.headers.map((header, index) => (
+                                        <th key={`header-${index}`}>
+                                            <EditableCell content={header} />
+                                        </th>
                                     ))}
                                 </tr>
-                            ))}
-                        </tbody>
-                    </table>
+                            </thead>
+                            <tbody>
+                                {tableData.rows.map((row, rowIndex) => (
+                                    <tr key={`row-${rowIndex}`}>
+                                        {row.map((cell, cellIndex) => (
+                                            <td key={`cell-${rowIndex}-${cellIndex}`}>
+                                                <EditableCell content={cell} />
+                                            </td>
+                                        ))}
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                        
+                        {/* 行追加ゾーン */}
+                        <div 
+                            className="add-row-zone"
+                            onClick={addRow}
+                            title="クリックして行を追加"
+                        >
+                            + 行を追加
+                        </div>
+                        
+                        {/* 列追加ゾーン */}
+                        <div 
+                            className="add-column-zone"
+                            onClick={addColumn}
+                            title="クリックして列を追加"
+                        >
+                            + 列を追加
+                        </div>
+                    </div>
                 </div>
             );
         };
