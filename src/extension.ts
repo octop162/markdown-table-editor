@@ -359,9 +359,6 @@ class TableEditorPanel {
 		// HTMLファイルを読み込む
 		let htmlContent = fs.readFileSync(htmlPath.fsPath, 'utf8');
 		
-		// テーブルデータのプレースホルダーを置換
-		htmlContent = htmlContent.replace('TABLE_DATA_PLACEHOLDER', tableDataJson);
-		
 		// Webviewで使用するリソースのURIを取得
 		const scriptUri = webview.asWebviewUri(vscode.Uri.joinPath(this._extensionUri, 'media', 'tableEditor.js'));
 		const styleUri = webview.asWebviewUri(vscode.Uri.joinPath(this._extensionUri, 'media', 'tableEditor.css'));
@@ -370,8 +367,9 @@ class TableEditorPanel {
 		const nonce = getNonce();
 		const csp = `
 			default-src 'none';
-			style-src ${webview.cspSource} 'unsafe-inline';
-			script-src 'nonce-${nonce}' 'unsafe-eval';
+			style-src ${webview.cspSource} https://unpkg.com 'unsafe-inline';
+			script-src 'nonce-${nonce}' https://unpkg.com 'unsafe-eval';
+			connect-src https://unpkg.com;
 			img-src ${webview.cspSource} https:;
 		`;
 		
@@ -379,14 +377,41 @@ class TableEditorPanel {
 		htmlContent = htmlContent.replace(
 			'<head>',
 			`<head>
-			<meta http-equiv="Content-Security-Policy" content="${csp}">
-			<meta name="viewport" content="width=device-width, initial-scale=1.0">`
+			<meta http-equiv="Content-Security-Policy" content="${csp}">`
 		);
 		
 		// スクリプトタグにnonceを追加
 		htmlContent = htmlContent.replace(
+			'<script src="https://unpkg.com/react@17/umd/react.development.js" crossorigin></script>',
+			`<script nonce="${nonce}" src="https://unpkg.com/react@17/umd/react.development.js" crossorigin></script>`
+		);
+		
+		htmlContent = htmlContent.replace(
+			'<script src="https://unpkg.com/react-dom@17/umd/react-dom.development.js" crossorigin></script>',
+			`<script nonce="${nonce}" src="https://unpkg.com/react-dom@17/umd/react-dom.development.js" crossorigin></script>`
+		);
+		
+		htmlContent = htmlContent.replace(
+			'<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>',
+			`<script nonce="${nonce}" src="https://unpkg.com/@babel/standalone/babel.min.js"></script>`
+		);
+		
+		// テーブルデータのスクリプトにnonceを追加
+		htmlContent = htmlContent.replace(
 			'<script>',
 			`<script nonce="${nonce}">`
+		);
+		
+		// Babelスクリプトにnonceを追加
+		htmlContent = htmlContent.replace(
+			'<script type="text/babel">',
+			`<script nonce="${nonce}" type="text/babel">`
+		);
+		
+		// テーブルデータのプレースホルダーを置換
+		htmlContent = htmlContent.replace(
+			'TABLE_DATA_PLACEHOLDER',
+			tableDataJson
 		);
 		
 		return htmlContent;
