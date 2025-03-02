@@ -2,6 +2,10 @@
   "name": "beautiful-markdown-editor",
   "displayName": "beautiful-markdown-editor",
   "description": "",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/octop162/markdown-table-editor"
+  },
   "version": "0.0.1",
   "engines": {
     "vscode": "^1.97.0"

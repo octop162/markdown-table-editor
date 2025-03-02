@@ -1,31 +1,5 @@
-import { StrictMode, useState, useEffect } from 'react'
-import { createRoot } from 'react-dom/client'
-import './index.css'
-import App from './App.tsx'
-
-// VSCodeのAPIを宣言
-declare global {
-  interface Window {
-    vscode: VSCodeAPI;
-  }
-}
-
-// VSCode APIのインターフェース定義
-interface VSCodeAPI {
-  postMessage(message: Record<string, unknown>): void;
-  // 必要に応じて他のメソッドも追加
-}
-
-// グローバルな状態管理
-let vscodeApi: VSCodeAPI;
-try {
-  // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-  // @ts-expect-error
-  window.vscode = acquireVsCodeApi();
-  vscodeApi = window.vscode;
-} catch (error) {
-  console.error('VSCode APIの取得に失敗しました:', error);
-}
+import { useState, useEffect } from 'react';
+import App from './App.tsx';
 
 // テーブルデータの型定義
 interface TableDataFromVSCode {
@@ -101,15 +75,20 @@ function convertToEditableTableData(data: TableDataFromVSCode): EditableTableDat
 
 // VSCodeにメッセージを送信する関数
 function sendMessage(message: Record<string, unknown>) {
-  if (vscodeApi) {
+  // VSCodeのAPIを取得
+  let vscodeApi: { postMessage(message: Record<string, unknown>): void };
+  try {
+    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+    // @ts-expect-error
+    vscodeApi = window.vscode;
     vscodeApi.postMessage(message);
-  } else {
-    console.error('VSCode APIが利用できません');
+  } catch (error) {
+    console.error('VSCode APIが利用できません', error);
   }
 }
 
 // メインアプリケーションコンポーネント
-function MainApp() {
+export function MainApp() {
   const [tableData, setTableData] = useState<EditableTableData | null>(null);
   const [originalTableData, setOriginalTableData] = useState<TableDataFromVSCode | null>(null);
   const [currentTableData, setCurrentTableData] = useState<EditableTableData | null>(null);
@@ -180,13 +159,4 @@ function MainApp() {
       onSaveTable={handleSaveTable}
     />
   );
-}
-
-// MainAppコンポーネントをエクスポート
-export { MainApp };
-
-createRoot(document.getElementById('root')!).render(
-  <StrictMode>
-    <MainApp />
-  </StrictMode>,
-)
+} 

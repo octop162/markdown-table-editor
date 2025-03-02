@@ -106,7 +106,7 @@ function updateDecorations(editor: vscode.TextEditor) {
 		
 		// クリックイベントを登録
 		const clickDisposable = vscode.languages.registerCodeLensProvider('markdown', {
-			provideCodeLenses(document, token) {
+			provideCodeLenses(document) {
 				const codeLenses: vscode.CodeLens[] = [];
 				
 				// テーブルの開始行にCodeLensを追加（非表示だがクリック検出用）
@@ -485,72 +485,72 @@ class TableEditorPanel {
 	}
 }
 
-// テーブル整形関数
-function formatTable(editor: vscode.TextEditor, tableData: TableData) {
-	try {
-		// 各列の最大幅を計算（全角文字を考慮）
-		const columnWidths: number[] = [];
+// // テーブル整形関数
+// function formatTable(editor: vscode.TextEditor, tableData: TableData) {
+// 	try {
+// 		// 各列の最大幅を計算（全角文字を考慮）
+// 		const columnWidths: number[] = [];
 		
-		// ヘッダーの幅をチェック
-		tableData.headers.forEach((header, index) => {
-			columnWidths[index] = getStringWidth(header);
-		});
+// 		// ヘッダーの幅をチェック
+// 		tableData.headers.forEach((header, index) => {
+// 			columnWidths[index] = getStringWidth(header);
+// 		});
 		
-		// データ行の幅をチェック
-		tableData.rows.forEach(row => {
-			row.forEach((cell, index) => {
-				const cellWidth = getStringWidth(cell);
-				if (!columnWidths[index] || cellWidth > columnWidths[index]) {
-					columnWidths[index] = cellWidth;
-				}
-			});
-		});
+// 		// データ行の幅をチェック
+// 		tableData.rows.forEach(row => {
+// 			row.forEach((cell, index) => {
+// 				const cellWidth = getStringWidth(cell);
+// 				if (!columnWidths[index] || cellWidth > columnWidths[index]) {
+// 					columnWidths[index] = cellWidth;
+// 				}
+// 			});
+// 		});
 		
-		// 最小幅を設定（3文字以上）
-		const finalWidths = columnWidths.map(width => Math.max(width, 3));
+// 		// 最小幅を設定（3文字以上）
+// 		const finalWidths = columnWidths.map(width => Math.max(width, 3));
 		
-		// ヘッダー行を整形
-		const headerRow = '| ' + tableData.headers.map((header, index) => 
-			padEndWithFullWidth(header, finalWidths[index])
-		).join(' | ') + ' |';
+// 		// ヘッダー行を整形
+// 		const headerRow = '| ' + tableData.headers.map((header, index) => 
+// 			padEndWithFullWidth(header, finalWidths[index])
+// 		).join(' | ') + ' |';
 		
-		// 区切り行を整形
-		const separatorRow = '| ' + finalWidths.map(width => 
-			'-'.repeat(width)
-		).join(' | ') + ' |';
+// 		// 区切り行を整形
+// 		const separatorRow = '| ' + finalWidths.map(width => 
+// 			'-'.repeat(width)
+// 		).join(' | ') + ' |';
 		
-		// データ行を整形
-		const dataRows = tableData.rows.map(row => 
-			'| ' + row.map((cell, index) => 
-				padEndWithFullWidth(cell, finalWidths[index])
-			).join(' | ') + ' |'
-		);
+// 		// データ行を整形
+// 		const dataRows = tableData.rows.map(row => 
+// 			'| ' + row.map((cell, index) => 
+// 				padEndWithFullWidth(cell, finalWidths[index])
+// 			).join(' | ') + ' |'
+// 		);
 		
-		// 整形されたテーブル
-		const formattedTable = [headerRow, separatorRow, ...dataRows].join('\n') + '\n';
+// 		// 整形されたテーブル
+// 		const formattedTable = [headerRow, separatorRow, ...dataRows].join('\n') + '\n';
 		
-		// エディタのテーブルを更新
-		editor.edit(editBuilder => {
-			const startPos = new vscode.Position(tableData.startLine, 0);
-			const endPos = new vscode.Position(tableData.endLine + 1, 0);
-			const range = new vscode.Range(startPos, endPos);
+// 		// エディタのテーブルを更新
+// 		editor.edit(editBuilder => {
+// 			const startPos = new vscode.Position(tableData.startLine, 0);
+// 			const endPos = new vscode.Position(tableData.endLine + 1, 0);
+// 			const range = new vscode.Range(startPos, endPos);
 			
-			editBuilder.replace(range, formattedTable);
-		}).then(success => {
-			if (success) {
-				vscode.window.showInformationMessage('テーブルを整形しました');
-			} else {
-				vscode.window.showErrorMessage('テーブルの整形に失敗しました');
-			}
-		}, error => {
-			console.error('テーブル整形中にエラーが発生しました:', error);
-			vscode.window.showErrorMessage(`テーブル整形中にエラーが発生しました: ${error instanceof Error ? error.message : String(error)}`);
-		});
-	} catch (error) {
-		console.error('テーブル整形中にエラーが発生しました:', error);
-		vscode.window.showErrorMessage(`テーブル整形中にエラーが発生しました: ${error}`);
-	}
-}
+// 			editBuilder.replace(range, formattedTable);
+// 		}).then(success => {
+// 			if (success) {
+// 				vscode.window.showInformationMessage('テーブルを整形しました');
+// 			} else {
+// 				vscode.window.showErrorMessage('テーブルの整形に失敗しました');
+// 			}
+// 		}, error => {
+// 			console.error('テーブル整形中にエラーが発生しました:', error);
+// 			vscode.window.showErrorMessage(`テーブル整形中にエラーが発生しました: ${error instanceof Error ? error.message : String(error)}`);
+// 		});
+// 	} catch (error) {
+// 		console.error('テーブル整形中にエラーが発生しました:', error);
+// 		vscode.window.showErrorMessage(`テーブル整形中にエラーが発生しました: ${error}`);
+// 	}
+// }
 
 // 全角文字を考慮した文字列の表示幅を取得する関数
 function getStringWidth(str: string): number {

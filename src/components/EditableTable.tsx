@@ -759,7 +759,7 @@ export default function EditableTable({ initialData, onUpdate, onSave }: Editabl
     return () => {
       document.removeEventListener('keydown', handleKeyDown);
     };
-  }, [selectedCells, tableData.rows, tableData.columns.length, lastSelectedCell, copySelectedCells, pasteFromClipboard, cutSelectedCells, history]);
+  }, [selectedCells, tableData.rows, tableData.columns.length, lastSelectedCell, copySelectedCells, pasteFromClipboard, cutSelectedCells, history, handleUndo]);
 
   const handleDragEnd = (event: DragEndEvent) => {
     const { active, over } = event;
