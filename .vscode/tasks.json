@@ -15,6 +15,9 @@
             "group": {
                 "kind": "build",
                 "isDefault": true
+            },
+            "options": {
+                "cwd": "${workspaceFolder}/extensions"
             }
         },
         {
@@ -27,6 +30,9 @@
             "presentation": {
                 "group": "watch",
                 "reveal": "never"
+            },
+            "options": {
+                "cwd": "${workspaceFolder}/extensions"
             }
         },
 		{
@@ -39,6 +45,9 @@
             "presentation": {
                 "group": "watch",
                 "reveal": "never"
+            },
+            "options": {
+                "cwd": "${workspaceFolder}/extensions"
             }
         },
 		{
@@ -50,7 +59,10 @@
 				"reveal": "never",
 				"group": "watchers"
 			},
-			"group": "build"
+			"group": "build",
+            "options": {
+                "cwd": "${workspaceFolder}/extensions"
+            }
 		},
 		{
 			"label": "tasks: watch-tests",
@@ -59,6 +71,28 @@
 				"npm: watch-tests"
 			],
 			"problemMatcher": []
-		}
+		},
+        {
+            "type": "npm",
+            "script": "pretest",
+            "group": "test",
+            "problemMatcher": [],
+            "label": "npm: pretest",
+            "detail": "npm run compile-tests && npm run compile && npm run lint",
+            "options": {
+                "cwd": "${workspaceFolder}/extensions"
+            }
+        },
+        {
+            "type": "npm",
+            "script": "compile",
+            "group": "build",
+            "problemMatcher": [],
+            "label": "npm: compile",
+            "detail": "npm run check-types && npm run lint && node esbuild.js",
+            "options": {
+                "cwd": "${workspaceFolder}/extensions"
+            }
+        }
 	]
 }

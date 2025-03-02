@@ -335,6 +335,20 @@ class TableEditorPanel {
 						// デバッグメッセージを出力チャネルに表示
 						this._outputChannel.appendLine(message.message);
 						return;
+					case 'ready':
+						// Webviewの準備ができたらデータを送信
+						this._panel.webview.postMessage({
+							type: 'init',
+							tableData: this._tableData
+						});
+						return;
+					case 'getTableData':
+						// テーブルデータのリクエストに応答
+						this._panel.webview.postMessage({
+							type: 'init',
+							tableData: this._tableData
+						});
+						return;
 				}
 			},
 			null,
@@ -346,14 +360,18 @@ class TableEditorPanel {
 		const webview = this._panel.webview;
 		this._panel.title = 'テーブル編集';
 		this._panel.webview.html = this._getHtmlForWebview(webview);
+		
+		// HTMLが読み込まれた後にテーブルデータを送信
+		setTimeout(() => {
+			this._panel.webview.postMessage({
+				type: 'init',
+				tableData: this._tableData
+			});
+		}, 500);
 	}
 
 	private _getHtmlForWebview(webview: vscode.Webview) {
-		// テーブルデータをJSON文字列に変換
-		const tableDataJson = JSON.stringify(this._tableData);
-		
 		// HTMLファイルのパスを取得
-		// const htmlPath = vscode.Uri.joinPath(this._extensionUri, 'media', 'tableEditor.html');
 		const htmlPath = vscode.Uri.joinPath(this._extensionUri, 'media', 'index.html');
 		
 		// HTMLファイルを読み込む
@@ -391,14 +409,10 @@ class TableEditorPanel {
 			`<link rel="stylesheet" crossorigin href="${cssUri}">`
 		);
 		
-		// テーブルデータを追加
+		// VSCodeのAPIを初期化するスクリプトを追加
 		htmlContent = htmlContent.replace(
-			'<div id="root"></div>',
-			`<div id="root"></div>
-			<script nonce="${nonce}">
-				window.tableData = ${tableDataJson};
-				window.vscode = acquireVsCodeApi();
-			</script>`
+			'window.vscode = undefined;',
+			'window.vscode = acquireVsCodeApi();'
 		);
 		
 		return htmlContent;
