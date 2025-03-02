@@ -1,26 +1,12 @@
-// The module 'vscode' contains the VS Code extensibility API
-// Import the module and reference it with the alias vscode in your code below
 import * as vscode from 'vscode';
-import * as path from 'path';
 import * as fs from 'fs';
 
 // テーブル検出用の正規表現
 const TABLE_REGEX = /^\|(.+\|)+$/;
 
-// This method is called when your extension is activated
-// Your extension is activated the very first time the command is executed
 export function activate(context: vscode.ExtensionContext) {
-	// コンテキストを保存する必要はなくなった
-	
-	// アクティベート時にMarkdownモードであることを確認
 	if (vscode.window.activeTextEditor?.document.languageId === 'markdown') {
-		console.log('Markdown編集モードで拡張機能がアクティブになりました！');
-		
-		// コマンド登録（Markdown専用機能）
-		const helloCommand = vscode.commands.registerCommand('beautiful-markdown-editor.helloWorld', () => {
-			vscode.window.showInformationMessage('Markdown編集モードです！しゃぶしゃぶレシピを美味しく書きましょう！');
-		});
-		
+
 		// テーブル編集コマンドを登録
 		const editTableCommand = vscode.commands.registerCommand('beautiful-markdown-editor.editTable', (lineNumber?: number) => {
 			const editor = vscode.window.activeTextEditor;
@@ -37,25 +23,6 @@ export function activate(context: vscode.ExtensionContext) {
 			
 			// テーブル編集パネルを表示
 			TableEditorPanel.createOrShow(context.extensionUri, tableData, editor);
-		});
-		
-		// テーブル整形コマンドを登録
-		const formatTableCommand = vscode.commands.registerCommand('beautiful-markdown-editor.formatTable', () => {
-			const editor = vscode.window.activeTextEditor;
-			if (!editor || editor.document.languageId !== 'markdown') {
-				vscode.window.showInformationMessage('Markdownファイルを開いてください');
-				return;
-			}
-			
-			// テーブルデータを取得
-			const tableData = extractTableData(editor);
-			if (!tableData) {
-				vscode.window.showInformationMessage('テーブルが見つかりませんでした');
-				return;
-			}
-			
-			// テーブルを整形
-			formatTable(editor, tableData);
 		});
 		
 		// テキストエディタの変更を監視
@@ -83,9 +50,7 @@ export function activate(context: vscode.ExtensionContext) {
 		}
 		
 		context.subscriptions.push(
-			helloCommand, 
 			editTableCommand, 
-			formatTableCommand,
 			changeActiveEditor,
 			changeDocument
 		);
@@ -290,7 +255,7 @@ class TableEditorPanel {
 				enableScripts: true,
 				retainContextWhenHidden: true,
 				localResourceRoots: [
-					vscode.Uri.joinPath(extensionUri, 'media')
+					vscode.Uri.joinPath(extensionUri, 'dist')
 				]
 			}
 		);
@@ -372,14 +337,14 @@ class TableEditorPanel {
 
 	private _getHtmlForWebview(webview: vscode.Webview) {
 		// HTMLファイルのパスを取得
-		const htmlPath = vscode.Uri.joinPath(this._extensionUri, 'media', 'index.html');
+		const htmlPath = vscode.Uri.joinPath(this._extensionUri, 'dist', 'webview', 'index.html');
 		
 		// HTMLファイルを読み込む
 		let htmlContent = fs.readFileSync(htmlPath.fsPath, 'utf8');
 		
 		// Webviewで使用するリソースのURIを取得
-		const jsUri = webview.asWebviewUri(vscode.Uri.joinPath(this._extensionUri, 'media', 'assets', 'index-rAC0QrcA.js'));
-		const cssUri = webview.asWebviewUri(vscode.Uri.joinPath(this._extensionUri, 'media', 'assets', 'index-C0GIdgEj.css'));
+		const jsUri = webview.asWebviewUri(vscode.Uri.joinPath(this._extensionUri, 'dist', 'webview', 'assets', 'index.js'));
+		const cssUri = webview.asWebviewUri(vscode.Uri.joinPath(this._extensionUri, 'dist', 'webview', 'assets', 'index.css'));
 		
 		// CSPを設定
 		const nonce = getNonce();
@@ -400,15 +365,15 @@ class TableEditorPanel {
 		
 		// JS/CSSのパスを修正
 		htmlContent = htmlContent.replace(
-			'<script type="module" crossorigin src="/assets/index-rAC0QrcA.js"></script>',
+			'<script type="module" crossorigin src="./assets/index.js"></script>',
 			`<script type="module" crossorigin src="${jsUri}" nonce="${nonce}"></script>`
 		);
 		
 		htmlContent = htmlContent.replace(
-			'<link rel="stylesheet" crossorigin href="/assets/index-C0GIdgEj.css">',
+			'<link rel="stylesheet" crossorigin href="./assets/index.css">',
 			`<link rel="stylesheet" crossorigin href="${cssUri}">`
 		);
-		
+
 		// VSCodeのAPIを初期化するスクリプトを追加
 		htmlContent = htmlContent.replace(
 			'window.vscode = undefined;',

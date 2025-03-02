@@ -1,13 +1,14 @@
 // See https://go.microsoft.com/fwlink/?LinkId=733558
 // for the documentation about the tasks.json format
 {
-	"version": "2.0.0",
-	"tasks": [
-		{
+    "version": "2.0.0",
+    "tasks": [
+        {
             "label": "watch",
             "dependsOn": [
                 "npm: watch:tsc",
-                "npm: watch:esbuild"
+                "npm: watch:esbuild",
+                "npm: build:vite"
             ],
             "presentation": {
                 "reveal": "never"
@@ -17,7 +18,7 @@
                 "isDefault": true
             },
             "options": {
-                "cwd": "${workspaceFolder}/extensions"
+                "cwd": "${workspaceFolder}"
             }
         },
         {
@@ -32,10 +33,10 @@
                 "reveal": "never"
             },
             "options": {
-                "cwd": "${workspaceFolder}/extensions"
+                "cwd": "${workspaceFolder}"
             }
         },
-		{
+        {
             "type": "npm",
             "script": "watch:tsc",
             "group": "build",
@@ -47,31 +48,62 @@
                 "reveal": "never"
             },
             "options": {
-                "cwd": "${workspaceFolder}/extensions"
+                "cwd": "${workspaceFolder}"
             }
         },
-		{
-			"type": "npm",
-			"script": "watch-tests",
-			"problemMatcher": "$tsc-watch",
-			"isBackground": true,
-			"presentation": {
-				"reveal": "never",
-				"group": "watchers"
-			},
-			"group": "build",
+        {
+            "type": "npm",
+            "script": "watch:vite",
+            "group": "build",
+            "problemMatcher": [
+                {
+                    "pattern": [
+                        {
+                            "regexp": ".",
+                            "file": 1,
+                            "location": 2,
+                            "message": 3
+                        }
+                    ],
+                    "background": {
+                        "activeOnStart": true,
+                        "beginsPattern": ".",
+                        "endsPattern": ".*Local:.*"
+                    }
+                }
+            ],
+            "isBackground": true,
+            "label": "npm: watch:vite",
+            "presentation": {
+                "reveal": "never",
+                "group": "watch"
+            },
             "options": {
-                "cwd": "${workspaceFolder}/extensions"
+                "cwd": "${workspaceFolder}"
             }
-		},
-		{
-			"label": "tasks: watch-tests",
-			"dependsOn": [
-				"npm: watch",
-				"npm: watch-tests"
-			],
-			"problemMatcher": []
-		},
+        },
+        {
+            "type": "npm",
+            "script": "watch-tests",
+            "problemMatcher": "$tsc-watch",
+            "isBackground": true,
+            "presentation": {
+                "reveal": "never",
+                "group": "watchers"
+            },
+            "group": "build",
+            "options": {
+                "cwd": "${workspaceFolder}"
+            }
+        },
+        {
+            "label": "tasks: watch-tests",
+            "dependsOn": [
+                "npm: watch",
+                "npm: watch-tests"
+            ],
+            "problemMatcher": []
+        },
         {
             "type": "npm",
             "script": "pretest",
@@ -80,7 +112,7 @@
             "label": "npm: pretest",
             "detail": "npm run compile-tests && npm run compile && npm run lint",
             "options": {
-                "cwd": "${workspaceFolder}/extensions"
+                "cwd": "${workspaceFolder}"
             }
         },
         {
@@ -91,8 +123,8 @@
             "label": "npm: compile",
             "detail": "npm run check-types && npm run lint && node esbuild.js",
             "options": {
-                "cwd": "${workspaceFolder}/extensions"
+                "cwd": "${workspaceFolder"
             }
         }
-	]
+    ]
 }
