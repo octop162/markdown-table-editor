@@ -79,7 +79,7 @@ function sendMessage(message: Record<string, unknown>) {
   let vscodeApi: { postMessage(message: Record<string, unknown>): void };
   try {
     // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-    // @ts-expect-error
+    // @ts-ignore
     vscodeApi = window.vscode;
     vscodeApi.postMessage(message);
   } catch (error) {

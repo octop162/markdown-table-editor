@@ -3,6 +3,8 @@ import * as fs from 'fs';
 
 // テーブル検出用の正規表現
 const TABLE_REGEX = /^\|(.+\|)+$/;
+// 区切り行の正規表現（ヘッダーと本文を区切る行）
+const SEPARATOR_REGEX = /^\|(\s*[-:]+\s*\|)+$/;
 
 export function activate(context: vscode.ExtensionContext) {
 	if (vscode.window.activeTextEditor?.document.languageId === 'markdown') {
@@ -62,61 +64,48 @@ function updateDecorations(editor: vscode.TextEditor) {
 	try {
 		const document = editor.document;
 		
-		// テーブルの開始行を追跡
-		const tableStartLines: number[] = [];
+		// 検出されたテーブルを格納する配列
+		const tables: { startLine: number; endLine: number }[] = [];
 		
-		for (let i = 0; i < document.lineCount; i++) {
+		let i = 0;
+		while (i < document.lineCount) {
 			const line = document.lineAt(i);
 			
-			// テーブル行を検出
-			if (TABLE_REGEX.test(line.text)) {
-				// テーブルの先頭行を検出（ヘッダー行の上）
-				if (i === 0 || !TABLE_REGEX.test(document.lineAt(i-1).text)) {
-					tableStartLines.push(i);
+			// テーブルの開始行を検出（テーブル行かつ前の行がテーブル行でない）
+			if (TABLE_REGEX.test(line.text) && (i === 0 || !TABLE_REGEX.test(document.lineAt(i - 1).text))) {
+				const startLine = i;
+				
+				// テーブルの終了行を検索
+				let endLine = startLine;
+				while (endLine + 1 < document.lineCount && TABLE_REGEX.test(document.lineAt(endLine + 1).text)) {
+					endLine++;
 				}
+				
+				// 有効なテーブルかチェック（少なくとも2行以上あり、2行目が区切り行）
+				if (endLine > startLine && SEPARATOR_REGEX.test(document.lineAt(startLine + 1).text)) {
+					tables.push({ startLine, endLine });
+				}
+				
+				// 次の検索位置を設定
+				i = endLine + 1;
+			} else {
+				i++;
 			}
 		}
-		
-		// テーブル上部に編集ボタンを表示するデコレーション
-		const decorationType = vscode.window.createTextEditorDecorationType({
-			after: {
-				contentText: ' 📝 テーブル編集',
-				color: '#4B7BEC',
-				backgroundColor: 'rgba(75, 123, 236, 0.1)',
-				border: '1px solid rgba(75, 123, 236, 0.3)',
-				margin: '0 0 0 10px'
-			},
-			isWholeLine: false  // 行全体ではなく、テキスト末尾に表示
-		});
-		
-		// デコレーションオプションを作成
-		const decorations = tableStartLines.map(lineNumber => {
-			const line = document.lineAt(lineNumber);
-			return {
-				range: new vscode.Range(
-					new vscode.Position(lineNumber, line.text.length),
-					new vscode.Position(lineNumber, line.text.length)
-				),
-				hoverMessage: 'クリックしてテーブルを編集'
-			};
-		});
-		
-		// デコレーションを適用
-		editor.setDecorations(decorationType, decorations);
 		
 		// クリックイベントを登録
 		const clickDisposable = vscode.languages.registerCodeLensProvider('markdown', {
 			provideCodeLenses(document) {
 				const codeLenses: vscode.CodeLens[] = [];
 				
-				// テーブルの開始行にCodeLensを追加（非表示だがクリック検出用）
-				tableStartLines.forEach(lineNumber => {
-					if (lineNumber < document.lineCount) {
-						const line = document.lineAt(lineNumber);
+				// 各テーブルの開始行にCodeLensを追加
+				tables.forEach(table => {
+					if (table.startLine < document.lineCount) {
+						const line = document.lineAt(table.startLine);
 						codeLenses.push(new vscode.CodeLens(line.range, {
-							title: '📝',  // 表示する
+							title: '📝 テーブル編集',
 							command: 'beautiful-markdown-editor.editTable',
-							arguments: [lineNumber]
+							arguments: [table.startLine]
 						}));
 					}
 				});
@@ -138,39 +127,38 @@ function extractTableData(editor: vscode.TextEditor, startLineNumber?: number): 
 		const document = editor.document;
 		let startLine = startLineNumber !== undefined ? startLineNumber : editor.selection.active.line;
 		
+		// カーソル位置がテーブル行でない場合は検出しない
+		if (!TABLE_REGEX.test(document.lineAt(startLine).text)) {
+			return undefined;
+		}
+		
 		// テーブルの開始行を見つける
-		while (startLine > 0 && TABLE_REGEX.test(document.lineAt(startLine).text)) {
+		while (startLine > 0 && TABLE_REGEX.test(document.lineAt(startLine - 1).text)) {
 			startLine--;
 		}
-		startLine++;
 		
 		// テーブルの終了行を見つける
 		let endLine = startLine;
-		while (endLine < document.lineCount - 1 && TABLE_REGEX.test(document.lineAt(endLine).text)) {
+		while (endLine < document.lineCount - 1 && TABLE_REGEX.test(document.lineAt(endLine + 1).text)) {
 			endLine++;
 		}
-		if (!TABLE_REGEX.test(document.lineAt(endLine).text)) {
-			endLine--;
+		
+		// テーブルが少なくとも2行（ヘッダー行と区切り行）あることを確認
+		if (endLine < startLine + 1) {
+			vscode.window.showErrorMessage('有効なMarkdownテーブルが見つかりませんでした。ヘッダー行と区切り行が必要です。');
+			return undefined;
 		}
 		
-		// テーブルが見つからない場合
-		if (startLine >= document.lineCount || !TABLE_REGEX.test(document.lineAt(startLine).text)) {
-			vscode.window.showErrorMessage('テーブルが見つかりませんでした');
+		// 2行目が区切り行であることを確認
+		if (!SEPARATOR_REGEX.test(document.lineAt(startLine + 1).text)) {
+			vscode.window.showErrorMessage('有効なMarkdownテーブルが見つかりませんでした。2行目は区切り行である必要があります。');
 			return undefined;
 		}
 		
 		// テーブルデータを抽出
 		const tableLines = [];
 		for (let i = startLine; i <= endLine; i++) {
-			if (i < document.lineCount && TABLE_REGEX.test(document.lineAt(i).text)) {
-				tableLines.push(document.lineAt(i).text);
-			}
-		}
-		
-		// テーブルの行が足りない場合
-		if (tableLines.length < 3) {
-			vscode.window.showErrorMessage('有効なMarkdownテーブルが見つかりませんでした。ヘッダー行、区切り行、データ行が必要です。');
-			return undefined;
+			tableLines.push(document.lineAt(i).text);
 		}
 		
 		// ヘッダー行とデータ行を分離
@@ -260,35 +248,35 @@ class TableEditorPanel {
 			}
 		);
 
-		// エディタの参照を保持
-		const editorReference = {
-			document: editor.document.uri,
-			viewColumn: editor.viewColumn,
-			selection: editor.selection
-		};
-
-		TableEditorPanel.currentPanel = new TableEditorPanel(panel, extensionUri, tableData, editor, editorReference);
+		TableEditorPanel.currentPanel = new TableEditorPanel(panel, extensionUri, tableData, editor);
 	}
 
 	private constructor(
 		panel: vscode.WebviewPanel, 
 		extensionUri: vscode.Uri, 
 		tableData: TableData, 
-		editor: vscode.TextEditor,
-		private readonly _editorReference: { document: vscode.Uri, viewColumn?: vscode.ViewColumn, selection: vscode.Selection }
+		editor: vscode.TextEditor
 	) {
 		this._panel = panel;
 		this._extensionUri = extensionUri;
 		this._tableData = tableData;
 		this._editor = editor;
-		this._outputChannel = vscode.window.createOutputChannel('テーブル編集');
-
-		// パネルの内容を設定
-		this._update();
-
-		// パネルが破棄されたときのイベント
+		this._outputChannel = vscode.window.createOutputChannel('Beautiful Markdown Editor');
+		
+		// パネルが閉じられたときの処理
 		this._panel.onDidDispose(() => this.dispose(), null, this._disposables);
-
+		
+		// パネルが表示されたときの処理
+		this._panel.onDidChangeViewState(
+			() => {
+				if (this._panel.visible) {
+					this._update();
+				}
+			},
+			null,
+			this._disposables
+		);
+		
 		// メッセージ受信時のイベント
 		this._panel.webview.onDidReceiveMessage(
 			message => {
@@ -301,7 +289,7 @@ class TableEditorPanel {
 						this._outputChannel.appendLine(message.message);
 						return;
 					case 'ready':
-						// Webviewの準備ができたらデータを送信
+						// Webviewが準備完了したらテーブルデータを送信
 						this._panel.webview.postMessage({
 							type: 'init',
 							tableData: this._tableData
@@ -319,20 +307,15 @@ class TableEditorPanel {
 			null,
 			this._disposables
 		);
+		
+		// パネルの内容を設定
+		this._update();
 	}
 
 	private _update() {
 		const webview = this._panel.webview;
 		this._panel.title = 'テーブル編集';
 		this._panel.webview.html = this._getHtmlForWebview(webview);
-		
-		// HTMLが読み込まれた後にテーブルデータを送信
-		setTimeout(() => {
-			this._panel.webview.postMessage({
-				type: 'init',
-				tableData: this._tableData
-			});
-		}, 500);
 	}
 
 	private _getHtmlForWebview(webview: vscode.Webview) {
@@ -484,73 +467,6 @@ class TableEditorPanel {
 		}
 	}
 }
-
-// // テーブル整形関数
-// function formatTable(editor: vscode.TextEditor, tableData: TableData) {
-// 	try {
-// 		// 各列の最大幅を計算（全角文字を考慮）
-// 		const columnWidths: number[] = [];
-		
-// 		// ヘッダーの幅をチェック
-// 		tableData.headers.forEach((header, index) => {
-// 			columnWidths[index] = getStringWidth(header);
-// 		});
-		
-// 		// データ行の幅をチェック
-// 		tableData.rows.forEach(row => {
-// 			row.forEach((cell, index) => {
-// 				const cellWidth = getStringWidth(cell);
-// 				if (!columnWidths[index] || cellWidth > columnWidths[index]) {
-// 					columnWidths[index] = cellWidth;
-// 				}
-// 			});
-// 		});
-		
-// 		// 最小幅を設定（3文字以上）
-// 		const finalWidths = columnWidths.map(width => Math.max(width, 3));
-		
-// 		// ヘッダー行を整形
-// 		const headerRow = '| ' + tableData.headers.map((header, index) => 
-// 			padEndWithFullWidth(header, finalWidths[index])
-// 		).join(' | ') + ' |';
-		
-// 		// 区切り行を整形
-// 		const separatorRow = '| ' + finalWidths.map(width => 
-// 			'-'.repeat(width)
-// 		).join(' | ') + ' |';
-		
-// 		// データ行を整形
-// 		const dataRows = tableData.rows.map(row => 
-// 			'| ' + row.map((cell, index) => 
-// 				padEndWithFullWidth(cell, finalWidths[index])
-// 			).join(' | ') + ' |'
-// 		);
-		
-// 		// 整形されたテーブル
-// 		const formattedTable = [headerRow, separatorRow, ...dataRows].join('\n') + '\n';
-		
-// 		// エディタのテーブルを更新
-// 		editor.edit(editBuilder => {
-// 			const startPos = new vscode.Position(tableData.startLine, 0);
-// 			const endPos = new vscode.Position(tableData.endLine + 1, 0);
-// 			const range = new vscode.Range(startPos, endPos);
-			
-// 			editBuilder.replace(range, formattedTable);
-// 		}).then(success => {
-// 			if (success) {
-// 				vscode.window.showInformationMessage('テーブルを整形しました');
-// 			} else {
-// 				vscode.window.showErrorMessage('テーブルの整形に失敗しました');
-// 			}
-// 		}, error => {
-// 			console.error('テーブル整形中にエラーが発生しました:', error);
-// 			vscode.window.showErrorMessage(`テーブル整形中にエラーが発生しました: ${error instanceof Error ? error.message : String(error)}`);
-// 		});
-// 	} catch (error) {
-// 		console.error('テーブル整形中にエラーが発生しました:', error);
-// 		vscode.window.showErrorMessage(`テーブル整形中にエラーが発生しました: ${error}`);
-// 	}
-// }
 
 // 全角文字を考慮した文字列の表示幅を取得する関数
 function getStringWidth(str: string): number {
