@@ -12,7 +12,7 @@
         table {
             border-collapse: collapse;
             width: 100%;
-            margin-bottom: 20px;
+            margin-bottom: 10px;
         }
         th, td {
             border: 1px solid #ddd;
@@ -29,11 +29,28 @@
         }
         .controls {
             margin-bottom: 20px;
+            display: flex;
+            gap: 10px;
         }
         .editable {
             min-width: 50px;
             min-height: 20px;
             white-space: pre-wrap; /* 改行を表示するために追加 */
+        }
+        
+        /* 選択されたセルのスタイル */
+        .cell-selected {
+            background-color: rgba(75, 123, 236, 0.2);
+            border: 1px solid rgba(75, 123, 236, 0.8);
+        }
+        
+        /* 選択範囲のスタイル */
+        .selection-area {
+            position: absolute;
+            background-color: rgba(75, 123, 236, 0.1);
+            border: 1px solid rgba(75, 123, 236, 0.5);
+            pointer-events: none;
+            z-index: 99;
         }
         
         /* テーブル下端と右端の追加エリア */
@@ -108,54 +125,18 @@
             color: #d9534f;
         }
         
-        /* デバッグパネル */
-        .debug-panel {
-            position: fixed;
-            bottom: 0;
-            left: 0;
-            right: 0;
-            background-color: #f0f0f0;
-            border-top: 1px solid #ccc;
-            padding: 10px;
-            font-family: monospace;
-            font-size: 12px;
-            max-height: 150px;
-            overflow-y: auto;
-            z-index: 1000;
-            display: none;
+        /* Undoボタン */
+        .undo-button {
+            background-color: #f8f9fa;
+            border: 1px solid #ddd;
+            color: #333;
         }
         
-        .debug-panel.visible {
-            display: block;
+        .undo-button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
         }
         
-        .debug-log {
-            margin: 0;
-            padding: 2px 0;
-        }
-        
-        .debug-controls {
-            display: flex;
-            justify-content: space-between;
-            margin-bottom: 5px;
-        }
-        
-        .debug-toggle {
-            position: fixed;
-            bottom: 10px;
-            right: 10px;
-            width: 30px;
-            height: 30px;
-            background-color: #4B7BEC;
-            color: white;
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            cursor: pointer;
-            z-index: 1001;
-            font-weight: bold;
-        }
     </style>
     <!-- React, ReactDOM, Babel CDNを追加 -->
     <script src="https://unpkg.com/react@17/umd/react.development.js" crossorigin></script>
@@ -164,76 +145,24 @@
 </head>
 <body>
     <div id="root"></div>
-    <div id="debug-toggle" class="debug-toggle">D</div>
-    <div id="debug-panel" class="debug-panel">
-        <div class="debug-controls">
-            <span>デバッグログ</span>
-            <button id="clear-debug" style="padding: 2px 5px; font-size: 12px;">クリア</button>
-        </div>
-        <div id="debug-log-container"></div>
-    </div>
 
     <!-- テーブルデータをグローバル変数として定義 -->
     <script>
         const initialTableData = TABLE_DATA_PLACEHOLDER;
-        
-        // デバッグ用のグローバル関数
-        window.debugLog = function(message, data) {
-            const container = document.getElementById('debug-log-container');
-            const logEntry = document.createElement('pre');
-            logEntry.className = 'debug-log';
-            
-            const timestamp = new Date().toLocaleTimeString();
-            let logMessage = `[${timestamp}] ${message}`;
-            
-            if (data !== undefined) {
-                if (typeof data === 'object') {
-                    logMessage += ': ' + JSON.stringify(data, null, 2);
-                } else {
-                    logMessage += ': ' + data;
-                }
-            }
-            
-            logEntry.textContent = logMessage;
-            container.appendChild(logEntry);
-            container.scrollTop = container.scrollHeight;
-            
-            // VS Codeにもデバッグメッセージを送信
-            if (window.vscode) {
-                window.vscode.postMessage({
-                    command: 'debug',
-                    message: logMessage
-                });
-            }
-            
-            // コンソールにも出力
-            console.log(logMessage);
-        };
-        
-        // デバッグパネルの表示/非表示を切り替え
-        document.getElementById('debug-toggle').addEventListener('click', function() {
-            const panel = document.getElementById('debug-panel');
-            panel.classList.toggle('visible');
-        });
-        
-        // デバッグログをクリア
-        document.getElementById('clear-debug').addEventListener('click', function() {
-            document.getElementById('debug-log-container').innerHTML = '';
-            window.debugLog('ログをクリアしました');
-        });
     </script>
 
     <!-- テーブルエディタのReactコード -->
     <script type="text/babel">
         // VSCodeのWebviewオブジェクト
         const vscode = acquireVsCodeApi();
-        
-        // デバッグログ用のショートカット
-        const debug = window.debugLog;
 
         // テーブルエディタコンポーネント
         const TableEditor = () => {
             const [tableData, setTableData] = React.useState(initialTableData);
+            const [history, setHistory] = React.useState([]);
+            const [selectedCells, setSelectedCells] = React.useState([]);
+            const [selectionStart, setSelectionStart] = React.useState(null);
+            const [selectionArea, setSelectionArea] = React.useState(null);
             const [dragState, setDragState] = React.useState({
                 isDragging: false,
                 type: null, // 'row' または 'column'
@@ -243,8 +172,16 @@
                 currentX: 0,
                 rowCount: 0,
                 columnCount: 0,
-                isDelete: false // 削除モードかどうか
+                isDelete: false
             });
+            
+            // 最新の選択状態を参照するためのref
+            const selectedCellsRef = React.useRef(selectedCells);
+            
+            // selectedCellsが更新されたらrefも更新
+            React.useEffect(() => {
+                selectedCellsRef.current = selectedCells;
+            }, [selectedCells]);
             
             // 最新のドラッグ状態を参照するためのref
             const dragStateRef = React.useRef(dragState);
@@ -257,17 +194,37 @@
             const tableContainerRef = React.useRef(null);
             const rowZoneRef = React.useRef(null);
             const columnZoneRef = React.useRef(null);
+            const tableRef = React.useRef(null);
             
-            React.useEffect(() => {
-                debug('テーブルデータが更新されました', {
-                    headers: tableData.headers.length,
-                    rows: tableData.rows.length
-                });
-            }, [tableData]);
+            // 履歴に現在の状態を追加
+            const addToHistory = (action) => {
+                console.log('履歴に追加:', action);
+                // ディープコピーを作成
+                const currentState = JSON.parse(JSON.stringify(tableData));
+                setHistory([...history, { state: currentState, action }]);
+            };
+            
+            // 元に戻す
+            const undo = () => {
+                if (history.length === 0) return;
+                
+                const lastHistoryItem = history[history.length - 1];
+                console.log('元に戻します:', lastHistoryItem.action);
+                
+                // 履歴から最後の状態を取得
+                setTableData(lastHistoryItem.state);
+                
+                // 履歴から最後の項目を削除
+                setHistory(history.slice(0, -1));
+            };
 
             // 行を追加
             const addRows = (count = 1) => {
-                debug(`${count}行追加します`);
+                console.log(`${count}行追加します`);
+                
+                // 現在の状態を履歴に追加
+                addToHistory(`${count}行追加`);
+                
                 const newRows = [];
                 for (let i = 0; i < count; i++) {
                     newRows.push(Array(tableData.headers.length).fill(''));
@@ -281,7 +238,11 @@
 
             // 列を追加
             const addColumns = (count = 1) => {
-                debug(`${count}列追加します`);
+                console.log(`${count}列追加します`);
+                
+                // 現在の状態を履歴に追加
+                addToHistory(`${count}列追加`);
+                
                 const newHeaders = [];
                 for (let i = 0; i < count; i++) {
                     newHeaders.push('新しい列');
@@ -296,50 +257,60 @@
             
             // 行を削除
             const deleteRows = (count = 1) => {
-                debug(`${count}行削除します`);
+                console.log(`${count}行削除します`);
                 
-                // 最低1行は残す
-                const remainingRows = Math.max(1, tableData.rows.length - count);
-                
-                if (remainingRows >= 1) {
-                    const newRows = [...tableData.rows].slice(0, remainingRows);
-                    
-                    setTableData({
-                        ...tableData,
-                        rows: newRows
-                    });
+                if (tableData.rows.length <= count) {
+                    console.log('削除できる行がありません（最低1行は必要）');
+                    return;
                 }
+                
+                // 現在の状態を履歴に追加
+                addToHistory(`${count}行削除`);
+                
+                const newRows = [...tableData.rows];
+                newRows.splice(-count); // 末尾からcount行を削除
+                
+                setTableData({
+                    ...tableData,
+                    rows: newRows
+                });
             };
             
             // 列を削除
             const deleteColumns = (count = 1) => {
-                debug(`${count}列削除します`);
+                console.log(`${count}列削除します`);
                 
-                // 最低1列は残す
-                const remainingColumns = Math.max(1, tableData.headers.length - count);
-                
-                if (remainingColumns >= 1) {
-                    const newHeaders = [...tableData.headers].slice(0, remainingColumns);
-                    
-                    const newRows = tableData.rows.map(row => {
-                        return [...row].slice(0, remainingColumns);
-                    });
-                    
-                    setTableData({
-                        ...tableData,
-                        headers: newHeaders,
-                        rows: newRows
-                    });
+                if (tableData.headers.length <= count) {
+                    console.log('削除できる列がありません（最低1列は必要）');
+                    return;
                 }
+                
+                // 現在の状態を履歴に追加
+                addToHistory(`${count}列削除`);
+                
+                const newHeaders = [...tableData.headers];
+                newHeaders.splice(-count); // 末尾からcount列を削除
+                
+                const newRows = tableData.rows.map(row => {
+                    const newRow = [...row];
+                    newRow.splice(-count); // 末尾からcount列を削除
+                    return newRow;
+                });
+                
+                setTableData({
+                    ...tableData,
+                    headers: newHeaders,
+                    rows: newRows
+                });
             };
-
+            
             // テーブルを保存
             const saveTable = () => {
                 try {
                     // 編集されたテーブルデータを収集
                     const headers = Array.from(document.querySelectorAll('th .editable')).map(th => {
                         // 改行を<br>タグに変換して保存
-                        return th.innerHTML.replace(/<div>/g, '<br>').replace(/<\/div>/g, '').replace(/<br>/g, '<br>');
+                        return th.innerHTML.replace(/<div>/g, '<br>').replace(/<\/div>/g, '');
                     });
                     
                     const rows = [];
@@ -378,7 +349,10 @@
                         rows
                     };
                     
-                    debug('テーブルを保存します', updatedTableData);
+                    console.log('テーブルを保存します', {
+                        headers: headers.length,
+                        rows: rows.length
+                    });
                     
                     // VSCodeに更新を通知
                     vscode.postMessage({
@@ -386,24 +360,420 @@
                         tableData: updatedTableData
                     });
                 } catch (error) {
-                    debug('テーブル保存中にエラーが発生しました', error.message);
+                    console.log('テーブル保存中にエラーが発生しました', error.message);
                     console.error('Error saving table:', error);
                 }
             };
 
             // 編集可能なセルコンポーネント
-            const EditableCell = ({ content }) => {
+            const EditableCell = ({ content, rowIndex, colIndex }) => {
                 // <br>タグを実際の改行に変換して表示
                 const htmlContent = content.replace(/<br>/g, '\\n').replace(/\\n/g, '<br>');
                 
+                // このセルが選択されているかチェック
+                const isSelected = selectedCells.some(cell => 
+                    cell.row === rowIndex && cell.col === colIndex
+                );
+                
+                // 選択されたセルへの参照
+                const cellRef = React.useRef(null);
+                
+                // 単一選択かどうかをチェック
+                const isSingleSelection = selectedCells.length === 1 && isSelected;
+                
+                // 最後の有効な内容を保持するためのref
+                const lastValidContentRef = React.useRef(htmlContent);
+                
+                // 編集モードかどうかを追跡するstate
+                const [isEditing, setIsEditing] = React.useState(false);
+                
+                // クリックイベントハンドラ
+                const handleClick = (e) => {
+                    // 右クリックの場合は処理しない
+                    if (e.button === 2) return;
+                    
+                    // 単一選択の場合は、編集モードを優先
+                    if (isSingleSelection && !e.ctrlKey && !e.shiftKey) {
+                        setIsEditing(true);
+                        // クリックイベントをそのまま通過させる（編集のため）
+                        return;
+                    }
+                    
+                    // それ以外の場合は選択処理を行う
+                    handleCellMouseDown(e, rowIndex, colIndex);
+                };
+                
+                // フォーカスイベントハンドラ
+                const handleFocus = (e) => {
+                    // 単一選択の場合は編集モードに
+                    if (isSingleSelection) {
+                        setIsEditing(true);
+                    }
+                };
+                
+                // ブラーイベントハンドラ
+                const handleBlur = (e) => {
+                    // 編集モードを終了
+                    setIsEditing(false);
+                    
+                    // 内容が変更されていれば保存
+                    if (cellRef.current && cellRef.current.innerHTML !== lastValidContentRef.current) {
+                        updateCellContent(rowIndex, colIndex, cellRef.current.innerHTML);
+                        lastValidContentRef.current = cellRef.current.innerHTML;
+                    }
+                };
+                
+                // キーダウンイベントハンドラ
+                const handleKeyDown = (e) => {
+                    // Enterキーが押されたとき（Shiftキーなしの場合）
+                    if (e.key === 'Enter' && !e.shiftKey) {
+                        e.preventDefault();
+                        e.target.blur(); // フォーカスを外す
+                        return;
+                    }
+                    
+                    // Escキーが押されたとき
+                    if (e.key === 'Escape') {
+                        // 元の内容に戻す
+                        if (cellRef.current) {
+                            cellRef.current.innerHTML = lastValidContentRef.current;
+                        }
+                        e.target.blur(); // フォーカスを外す
+                        return;
+                    }
+                };
+                
+                // 入力イベントハンドラ
+                const handleInput = (e) => {
+                    // 入力内容を保存（遅延なし）
+                    if (cellRef.current) {
+                        const newContent = cellRef.current.innerHTML;
+                        // 内容が変更された場合のみ更新
+                        if (newContent !== lastValidContentRef.current) {
+                            updateCellContent(rowIndex, colIndex, newContent);
+                            lastValidContentRef.current = newContent;
+                        }
+                    }
+                };
+                
+                // マウント時とアンマウント時の処理
+                React.useEffect(() => {
+                    // 内容が変更されたら参照を更新
+                    lastValidContentRef.current = htmlContent;
+                    
+                    // コンポーネントがアンマウントされるときのクリーンアップ
+                    return () => {
+                        // 必要に応じてクリーンアップ処理を追加
+                    };
+                }, [htmlContent]);
+                
+                // 編集モードが変わったときの処理
+                React.useEffect(() => {
+                    const cellElement = cellRef.current;
+                    if (!cellElement) return;
+                    
+                    if (isEditing) {
+                        // 編集モードになったらフォーカスを設定
+                        cellElement.focus();
+                        
+                        // カーソルを末尾に移動
+                        const range = document.createRange();
+                        const sel = window.getSelection();
+                        
+                        try {
+                            // テキストノードがある場合は最後のテキストノードの末尾にカーソルを置く
+                            if (cellElement.lastChild && cellElement.lastChild.nodeType === Node.TEXT_NODE) {
+                                range.setStart(cellElement.lastChild, cellElement.lastChild.length);
+                                range.collapse(true);
+                                sel.removeAllRanges();
+                                sel.addRange(range);
+                            } else {
+                                // テキストノードがない場合は要素の末尾にカーソルを置く
+                                range.selectNodeContents(cellElement);
+                                range.collapse(false);
+                                sel.removeAllRanges();
+                                sel.addRange(range);
+                            }
+                        } catch (e) {
+                            console.error('カーソル位置の設定に失敗しました', e);
+                        }
+                    }
+                }, [isEditing]);
+                
                 return (
                     <div
-                        className="editable"
+                        ref={cellRef}
+                        className={`editable ${isSelected ? 'cell-selected' : ''}`}
                         contentEditable="true"
                         dangerouslySetInnerHTML={{ __html: htmlContent }}
+                        onClick={handleClick}
+                        onMouseDown={(e) => {
+                            // 単一選択の場合は、編集モードを優先
+                            if (isSingleSelection && !e.ctrlKey && !e.shiftKey) {
+                                // イベントをそのまま通過させる（編集のため）
+                                return;
+                            }
+                            
+                            // それ以外の場合は選択処理を行う
+                            handleCellMouseDown(e, rowIndex, colIndex);
+                        }}
+                        onMouseEnter={(e) => handleCellMouseEnter(e, rowIndex, colIndex)}
+                        onFocus={handleFocus}
+                        onBlur={handleBlur}
+                        onKeyDown={handleKeyDown}
+                        onInput={handleInput}
+                        style={{ 
+                            position: 'relative',
+                            // 単一選択または編集モードの場合は通常のカーソルを表示
+                            cursor: (isSingleSelection || isEditing) ? 'text' : 'default'
+                        }}
                     />
                 );
             };
+            
+            // セルの内容を更新する関数
+            const updateCellContent = (rowIndex, colIndex, newContent) => {
+                // ヘッダー行の場合
+                if (rowIndex === -1) {
+                    setTableData(prevData => {
+                        const newHeaders = [...prevData.headers];
+                        newHeaders[colIndex] = newContent;
+                        
+                        return {
+                            ...prevData,
+                            headers: newHeaders
+                        };
+                    });
+                } 
+                // 通常の行の場合
+                else if (rowIndex >= 0) {
+                    setTableData(prevData => {
+                        const newRows = [...prevData.rows];
+                        
+                        // 行と列が範囲内かチェック
+                        if (rowIndex < newRows.length && colIndex < prevData.headers.length) {
+                            // 行のディープコピーを作成
+                            newRows[rowIndex] = [...newRows[rowIndex]];
+                            newRows[rowIndex][colIndex] = newContent;
+                        }
+                        
+                        return {
+                            ...prevData,
+                            rows: newRows
+                        };
+                    });
+                }
+            };
+            
+            // セルのマウスダウンハンドラ
+            const handleCellMouseDown = (e, rowIndex, colIndex) => {
+                // テキスト選択やカーソル位置決めの場合は、イベントを処理しない
+                if (e.target.isContentEditable && 
+                    (window.getSelection().toString() || 
+                     e.target !== e.currentTarget || 
+                     e.target.tagName === 'BR')) {
+                    return;
+                }
+                
+                // 右クリックの場合は処理しない
+                if (e.button === 2) {
+                    return;
+                }
+                
+                // 単一選択されたセルをクリックした場合は、編集モードを優先
+                const isSingleSelectedCell = selectedCells.length === 1 && 
+                    selectedCells[0].row === rowIndex && 
+                    selectedCells[0].col === colIndex;
+                
+                if (isSingleSelectedCell && !e.ctrlKey && !e.shiftKey) {
+                    // イベントをそのまま通過させる（編集のため）
+                    return;
+                }
+                
+                // 以降は選択処理
+                e.preventDefault();
+                
+                // Shiftキーが押されている場合は範囲選択
+                if (e.shiftKey && selectedCells.length > 0) {
+                    // 最後に選択されたセルを基準にする
+                    const lastCell = selectedCells[selectedCells.length - 1];
+                    
+                    // 選択範囲を計算
+                    const startRow = Math.min(lastCell.row, rowIndex);
+                    const endRow = Math.max(lastCell.row, rowIndex);
+                    const startCol = Math.min(lastCell.col, colIndex);
+                    const endCol = Math.max(lastCell.col, colIndex);
+                    
+                    // 選択範囲内のすべてのセルを選択
+                    const newSelection = [];
+                    for (let r = startRow; r <= endRow; r++) {
+                        for (let c = startCol; c <= endCol; c++) {
+                            newSelection.push({ row: r, col: c });
+                        }
+                    }
+                    
+                    setSelectedCells(newSelection);
+                    return;
+                }
+                
+                // Ctrlキーが押されていない場合は選択をクリア
+                if (!e.ctrlKey) {
+                    setSelectedCells([]);
+                }
+                
+                // 選択開始位置を設定
+                setSelectionStart({ 
+                    row: rowIndex, 
+                    col: colIndex,
+                    clientX: e.clientX,
+                    clientY: e.clientY
+                });
+                
+                // このセルを選択に追加
+                const newSelection = e.ctrlKey ? [...selectedCells] : [];
+                
+                // 既に選択されている場合は選択解除
+                const alreadySelected = newSelection.some(
+                    cell => cell.row === rowIndex && cell.col === colIndex
+                );
+                
+                if (alreadySelected) {
+                    setSelectedCells(newSelection.filter(
+                        cell => !(cell.row === rowIndex && cell.col === colIndex)
+                    ));
+                } else {
+                    setSelectedCells([...newSelection, { row: rowIndex, col: colIndex }]);
+                }
+                
+                // グローバルのマウスイベントを追加
+                document.addEventListener('mousemove', handleCellMouseMove);
+                document.addEventListener('mouseup', handleCellMouseUp);
+            };
+            
+            // セルのマウス移動ハンドラ
+            const handleCellMouseMove = (e) => {
+                if (!selectionStart) return;
+                
+                // 移動距離が小さい場合は、ドラッグとみなさない（クリックの精度向上）
+                const moveDistance = Math.sqrt(
+                    Math.pow(e.clientX - selectionStart.clientX, 2) + 
+                    Math.pow(e.clientY - selectionStart.clientY, 2)
+                );
+                
+                if (moveDistance < 5) return;
+                
+                // 選択範囲の表示を更新
+                setSelectionArea({
+                    left: Math.min(selectionStart.clientX, e.clientX),
+                    top: Math.min(selectionStart.clientY, e.clientY),
+                    width: Math.abs(e.clientX - selectionStart.clientX),
+                    height: Math.abs(e.clientY - selectionStart.clientY)
+                });
+            };
+            
+            // セルのマウスエンターハンドラ（ドラッグ選択用）
+            const handleCellMouseEnter = (e, rowIndex, colIndex) => {
+                if (!selectionStart) return;
+                
+                // 選択範囲を計算
+                const startRow = Math.min(selectionStart.row, rowIndex);
+                const endRow = Math.max(selectionStart.row, rowIndex);
+                const startCol = Math.min(selectionStart.col, colIndex);
+                const endCol = Math.max(selectionStart.col, colIndex);
+                
+                // 選択範囲内のすべてのセルを選択
+                const newSelection = [];
+                for (let r = startRow; r <= endRow; r++) {
+                    for (let c = startCol; c <= endCol; c++) {
+                        newSelection.push({ row: r, col: c });
+                    }
+                }
+                
+                setSelectedCells(newSelection);
+            };
+            
+            // セルのマウスアップハンドラ
+            const handleCellMouseUp = (e) => {
+                // 選択終了
+                setSelectionStart(null);
+                setSelectionArea(null);
+                
+                // グローバルのマウスイベントを削除
+                document.removeEventListener('mousemove', handleCellMouseMove);
+                document.removeEventListener('mouseup', handleCellMouseUp);
+                
+                console.log('セル選択完了', { selectedCells: selectedCellsRef.current });
+            };
+            
+            // 選択されたセルの内容をコピー
+            const copySelectedCells = () => {
+                if (selectedCells.length === 0) return;
+                
+                // 選択されたセルの行と列の範囲を取得
+                const rows = selectedCells.map(cell => cell.row);
+                const cols = selectedCells.map(cell => cell.col);
+                const minRow = Math.min(...rows);
+                const maxRow = Math.max(...rows);
+                const minCol = Math.min(...cols);
+                const maxCol = Math.max(...cols);
+                
+                // 選択範囲のデータを2次元配列として取得
+                const data = [];
+                for (let r = minRow; r <= maxRow; r++) {
+                    const rowData = [];
+                    for (let c = minCol; c <= maxCol; c++) {
+                        // ヘッダー行の場合
+                        if (r === -1) {
+                            rowData.push(tableData.headers[c] || '');
+                        } else {
+                            // 通常の行の場合
+                            rowData.push((tableData.rows[r] && tableData.rows[r][c]) || '');
+                        }
+                    }
+                    data.push(rowData);
+                }
+                
+                // タブ区切りのテキストに変換
+                const text = data.map(row => row.join('\t')).join('\n');
+                
+                // クリップボードにコピー
+                navigator.clipboard.writeText(text)
+                    .then(() => {
+                        console.log('選択されたセルをコピーしました', { rows: data.length, cols: data[0].length });
+                    })
+                    .catch(err => {
+                        console.log('コピーに失敗しました', err);
+                    });
+            };
+            
+            // キーボードイベントハンドラ
+            React.useEffect(() => {
+                const handleKeyDown = (e) => {
+                    // 編集中の場合は処理しない
+                    if (e.target.isContentEditable && 
+                        document.activeElement === e.target && 
+                        !e.ctrlKey && 
+                        !e.metaKey && 
+                        e.key !== 'Escape') {
+                        return;
+                    }
+                    
+                    // Ctrl+C でコピー
+                    if ((e.ctrlKey || e.metaKey) && e.key === 'c') {
+                        copySelectedCells();
+                    }
+                    
+                    // Escキーで選択解除
+                    if (e.key === 'Escape') {
+                        setSelectedCells([]);
+                    }
+                };
+                
+                document.addEventListener('keydown', handleKeyDown);
+                return () => {
+                    document.removeEventListener('keydown', handleKeyDown);
+                };
+            }, [selectedCells]);
             
             // ドラッグ開始ハンドラ
             const handleDragStart = (e, type) => {
@@ -412,7 +782,7 @@
                 const startY = e.clientY;
                 const startX = e.clientX;
                 
-                debug('ドラッグを開始しました', { type, startX, startY });
+                console.log('ドラッグを開始しました', { type, startX, startY });
                 
                 setDragState({
                     isDragging: true,
@@ -444,38 +814,32 @@
                 let isDelete = false;
                 
                 if (dragStateRef.current.type === 'row') {
-                    const diffY = currentY - dragStateRef.current.startY;
+                    // マイナス方向（上方向）のドラッグは削除モード
+                    isDelete = currentY < dragStateRef.current.startY;
                     
-                    if (diffY < 0) {
-                        // 上方向のドラッグは削除モード
-                        isDelete = true;
-                        // 20pxごとに1行として計算（絶対値を使用）
+                    if (isDelete) {
+                        // 削除する行数を計算（上方向へのドラッグ）
                         rowCount = Math.min(
                             tableData.rows.length - 1, // 最低1行は残す
-                            Math.max(1, Math.floor(Math.abs(diffY) / 20))
+                            Math.max(1, Math.floor((dragStateRef.current.startY - currentY) / 30))
                         );
                     } else {
-                        // 下方向のドラッグは追加モード
-                        isDelete = false;
-                        // 20pxごとに1行として計算
-                        rowCount = Math.max(1, Math.floor(diffY / 20));
+                        // 追加する行数を計算（下方向へのドラッグ）
+                        rowCount = Math.max(1, Math.floor((currentY - dragStateRef.current.startY) / 30));
                     }
                 } else if (dragStateRef.current.type === 'column') {
-                    const diffX = currentX - dragStateRef.current.startX;
+                    // マイナス方向（左方向）のドラッグは削除モード
+                    isDelete = currentX < dragStateRef.current.startX;
                     
-                    if (diffX < 0) {
-                        // 左方向のドラッグは削除モード
-                        isDelete = true;
-                        // 20pxごとに1列として計算（絶対値を使用）
+                    if (isDelete) {
+                        // 削除する列数を計算（左方向へのドラッグ）
                         columnCount = Math.min(
                             tableData.headers.length - 1, // 最低1列は残す
-                            Math.max(1, Math.floor(Math.abs(diffX) / 20))
+                            Math.max(1, Math.floor((dragStateRef.current.startX - currentX) / 30))
                         );
                     } else {
-                        // 右方向のドラッグは追加モード
-                        isDelete = false;
-                        // 20pxごとに1列として計算
-                        columnCount = Math.max(1, Math.floor(diffX / 20));
+                        // 追加する列数を計算（右方向へのドラッグ）
+                        columnCount = Math.max(1, Math.floor((currentX - dragStateRef.current.startX) / 30));
                     }
                 }
                 
@@ -483,7 +847,7 @@
                 if (rowCount !== dragStateRef.current.rowCount || 
                     columnCount !== dragStateRef.current.columnCount ||
                     isDelete !== dragStateRef.current.isDelete) {
-                    debug('ドラッグ中', { 
+                    console.log('ドラッグ中', { 
                         type: dragStateRef.current.type, 
                         rowCount, 
                         columnCount,
@@ -510,7 +874,7 @@
                 
                 if (!currentDragState.isDragging) return;
                 
-                debug('ドラッグを終了しました', {
+                console.log('ドラッグを終了しました', {
                     type: currentDragState.type,
                     rowCount: currentDragState.rowCount,
                     columnCount: currentDragState.columnCount,
@@ -653,15 +1017,27 @@
                 <div>
                     <div className="controls">
                         <button onClick={saveTable}>保存</button>
+                        <button 
+                            className="undo-button" 
+                            onClick={undo} 
+                            disabled={history.length === 0}
+                            title={history.length > 0 ? `元に戻す: ${history[history.length-1].action}` : '元に戻す操作はありません'}
+                        >
+                            元に戻す
+                        </button>
                     </div>
                     
                     <div className="table-container" ref={tableContainerRef}>
-                        <table>
+                        <table ref={tableRef}>
                             <thead>
                                 <tr>
                                     {tableData.headers.map((header, index) => (
                                         <th key={`header-${index}`}>
-                                            <EditableCell content={header} />
+                                            <EditableCell 
+                                                content={header} 
+                                                rowIndex={-1} 
+                                                colIndex={index} 
+                                            />
                                         </th>
                                     ))}
                                 </tr>
@@ -671,13 +1047,30 @@
                                     <tr key={`row-${rowIndex}`}>
                                         {row.map((cell, cellIndex) => (
                                             <td key={`cell-${rowIndex}-${cellIndex}`}>
-                                                <EditableCell content={cell} />
+                                                <EditableCell 
+                                                    content={cell} 
+                                                    rowIndex={rowIndex} 
+                                                    colIndex={cellIndex} 
+                                                />
                                             </td>
                                         ))}
                                     </tr>
                                 ))}
                             </tbody>
                         </table>
+                        
+                        {/* 選択範囲の表示 */}
+                        {selectionArea && (
+                            <div 
+                                className="selection-area"
+                                style={{
+                                    left: selectionArea.left,
+                                    top: selectionArea.top,
+                                    width: selectionArea.width,
+                                    height: selectionArea.height
+                                }}
+                            ></div>
+                        )}
                         
                         {/* 行追加ゾーン */}
                         <div 
@@ -726,7 +1119,7 @@
         );
         
         // 初期化完了のログ
-        debug('テーブルエディタが初期化されました', {
+        console.log('テーブルエディタが初期化されました', {
             headers: initialTableData.headers.length,
             rows: initialTableData.rows.length
         });
@@ -734,7 +1127,7 @@
         // メッセージハンドラを登録
         window.addEventListener('message', event => {
             const message = event.data;
-            debug('VS Codeからメッセージを受信しました', message);
+            console.log('VS Codeからメッセージを受信しました', message);
         });
     </script>
 </body>

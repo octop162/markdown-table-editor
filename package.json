@@ -14,20 +14,7 @@
   ],
   "main": "./dist/extension.js",
   "contributes": {
-    "commands": [
-      {
-        "command": "beautiful-markdown-editor.helloWorld",
-        "title": "Hello World"
-      },
-      {
-        "command": "beautiful-markdown-editor.editTable",
-        "title": "Markdownテーブルを編集"
-      },
-      {
-        "command": "beautiful-markdown-editor.formatTable",
-        "title": "Markdownテーブルを整形"
-      }
-    ],
+    "commands": [],
     "languages": [{
       "id": "markdown",
       "aliases": ["Markdown", "markdown"],
