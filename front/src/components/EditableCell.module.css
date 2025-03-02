@@ -1,0 +1,47 @@
+.cell {
+  min-height: 32px;
+  min-width: 70px;
+  padding: 4px 8px;
+  border: 1px solid #e0e0e0;
+  font-family: Arial, sans-serif;
+  font-size: 14px;
+  background-color: #ffffff;
+  transition: all 0.2s ease;
+  position: relative;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  width: 100%;
+}
+
+.cell:hover {
+  background-color: #f8f9fa;
+}
+
+.cell:focus {
+  outline: 2px solid #1a73e8;
+  z-index: 1;
+  overflow: visible;
+  white-space: normal;
+}
+
+.header {
+  background-color: #f8f9fa;
+  font-weight: 600;
+  color: #202124;
+}
+
+.headerText {
+  user-select: none;
+  pointer-events: none;
+  color: #5f6368;
+}
+
+.selected {
+  background-color: #e8f0fe;
+  border: 1px solid #1a73e8;
+}
+
+.selected:hover {
+  background-color: #d2e3fc;
+} 

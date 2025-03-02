@@ -1,0 +1,51 @@
+.columnControl {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  min-width: 70px;
+  padding: 4px 8px;
+  cursor: grab;
+  position: relative;
+}
+
+.columnControlInner {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+}
+
+.columnDragHandle {
+  user-select: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #888;
+  font-size: 14px;
+}
+
+.columnControl:hover .columnDragHandle {
+  color: #333;
+}
+
+.removeColumnButton {
+  background: none;
+  border: none;
+  color: #d93025;
+  cursor: pointer;
+  font-size: 12px;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0.5;
+  width: 16px;
+  height: 16px;
+  line-height: 1;
+}
+
+.removeColumnButton:hover {
+  opacity: 1;
+} 
