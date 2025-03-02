@@ -65,6 +65,15 @@ const DeleteIcon = () => (
   </svg>
 );
 
+// 保存アイコン
+const SaveIcon = () => (
+  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/>
+    <polyline points="17 21 17 13 7 13 7 21"/>
+    <polyline points="7 3 7 8 15 8"/>
+  </svg>
+);
+
 interface TableData {
   rows: {
     id: string;
@@ -83,8 +92,14 @@ interface CellPosition {
   cellIndex: number;
 }
 
-export default function EditableTable() {
-  const [tableData, setTableData] = useState<TableData>({
+interface EditableTableProps {
+  initialData?: TableData;
+  onUpdate?: (data: TableData) => void;
+  onSave?: () => void;
+}
+
+export default function EditableTable({ initialData, onUpdate, onSave }: EditableTableProps) {
+  const [tableData, setTableData] = useState<TableData>(initialData || {
     rows: [
       { 
         id: 'row-1', 
@@ -131,6 +146,21 @@ export default function EditableTable() {
       },
     })
   );
+
+  // 初期データが変更されたときにテーブルデータを更新
+  useEffect(() => {
+    if (initialData) {
+      setTableData(initialData);
+    }
+  }, [initialData]);
+
+  // テーブルデータが変更されたときに親コンポーネントに通知
+  useEffect(() => {
+    if (onUpdate && !isUndoingRef.current) {
+      onUpdate(tableData);
+    }
+    isUndoingRef.current = false;
+  }, [tableData, onUpdate]);
 
   // 元に戻す処理
   const handleUndo = () => {
@@ -906,6 +936,21 @@ export default function EditableTable() {
             <UndoIcon />
           </button>
         </div>
+
+        {onSave && (
+          <>
+            <div className={styles.toolbarDivider}></div>
+            <div className={styles.toolbarGroup}>
+              <button 
+                className={styles.saveButton} 
+                onClick={onSave}
+                title="保存"
+              >
+                <SaveIcon />
+              </button>
+            </div>
+          </>
+        )}
 
         {selectedCells.length > 0 && (
           <>

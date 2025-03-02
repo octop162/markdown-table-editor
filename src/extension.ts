@@ -294,7 +294,7 @@ class TableEditorPanel {
 			message => {
 				switch (message.command) {
 					case 'updateTable':
-						this._updateTable(message.tableData);
+						this._updateTable(message.tableData, message.closeWebview);
 						return;
 					case 'debug':
 						// デバッグメッセージを出力チャネルに表示
@@ -383,7 +383,8 @@ class TableEditorPanel {
 		return htmlContent;
 	}
 
-	private _updateTable(updatedTableData: TableData) {
+	private _updateTable(updatedTableData: TableData, closeWebview: boolean) {
+		console.log("updatedTableData", updatedTableData);
 		try {
 			// エディタが有効かどうかを確認
 			if (!this._editor || !this._editor.document || this._editor.document.isClosed) {
@@ -411,7 +412,9 @@ class TableEditorPanel {
 				if (success) {
 					vscode.window.showInformationMessage('テーブルを更新しました');
 					// パネルを閉じる
-					this.dispose();
+					if (closeWebview) {
+						this.dispose();
+					}
 				} else {
 					vscode.window.showErrorMessage('テーブルの更新に失敗しました');
 				}
