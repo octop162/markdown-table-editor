@@ -1,7 +1,7 @@
 {
-  "name": "beautiful-markdown-editor",
-  "displayName": "beautiful-markdown-editor",
-  "description": "",
+  "name": "markdown-table-editor",
+  "displayName": "markdown-table-editor",
+  "description": "markdown table editor",
   "repository": {
     "type": "git",
     "url": "https://github.com/octop162/markdown-table-editor"
