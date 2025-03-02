@@ -119,9 +119,7 @@ function updateDecorations(editor: vscode.TextEditor) {
 				color: '#4B7BEC',
 				backgroundColor: 'rgba(75, 123, 236, 0.1)',
 				border: '1px solid rgba(75, 123, 236, 0.3)',
-				borderRadius: '4px',
-				margin: '0 0 0 10px',
-				cursor: 'pointer'
+				margin: '0 0 0 10px'
 			},
 			isWholeLine: false  // 行全体ではなく、テキスト末尾に表示
 		});
@@ -144,7 +142,7 @@ function updateDecorations(editor: vscode.TextEditor) {
 		// クリックイベントを登録
 		const clickDisposable = vscode.languages.registerCodeLensProvider('markdown', {
 			provideCodeLenses(document, token) {
-				const codeLenses = [];
+				const codeLenses: vscode.CodeLens[] = [];
 				
 				// テーブルの開始行にCodeLensを追加（非表示だがクリック検出用）
 				tableStartLines.forEach(lineNumber => {
@@ -318,6 +316,7 @@ class TableEditorPanel {
 		this._extensionUri = extensionUri;
 		this._tableData = tableData;
 		this._editor = editor;
+		this._outputChannel = vscode.window.createOutputChannel('テーブル編集');
 
 		// パネルの内容を設定
 		this._update();
@@ -354,23 +353,24 @@ class TableEditorPanel {
 		const tableDataJson = JSON.stringify(this._tableData);
 		
 		// HTMLファイルのパスを取得
-		const htmlPath = vscode.Uri.joinPath(this._extensionUri, 'media', 'tableEditor.html');
+		// const htmlPath = vscode.Uri.joinPath(this._extensionUri, 'media', 'tableEditor.html');
+		const htmlPath = vscode.Uri.joinPath(this._extensionUri, 'media', 'index.html');
 		
 		// HTMLファイルを読み込む
 		let htmlContent = fs.readFileSync(htmlPath.fsPath, 'utf8');
 		
 		// Webviewで使用するリソースのURIを取得
-		const scriptUri = webview.asWebviewUri(vscode.Uri.joinPath(this._extensionUri, 'media', 'tableEditor.js'));
-		const styleUri = webview.asWebviewUri(vscode.Uri.joinPath(this._extensionUri, 'media', 'tableEditor.css'));
+		const jsUri = webview.asWebviewUri(vscode.Uri.joinPath(this._extensionUri, 'media', 'assets', 'index-rAC0QrcA.js'));
+		const cssUri = webview.asWebviewUri(vscode.Uri.joinPath(this._extensionUri, 'media', 'assets', 'index-C0GIdgEj.css'));
 		
 		// CSPを設定
 		const nonce = getNonce();
 		const csp = `
 			default-src 'none';
-			style-src ${webview.cspSource} https://unpkg.com 'unsafe-inline';
-			script-src 'nonce-${nonce}' https://unpkg.com 'unsafe-eval';
-			connect-src https://unpkg.com;
+			style-src ${webview.cspSource} 'unsafe-inline';
+			script-src ${webview.cspSource} 'nonce-${nonce}';
 			img-src ${webview.cspSource} https:;
+			font-src ${webview.cspSource};
 		`;
 		
 		// HTMLにCSPとnonceを追加
@@ -380,38 +380,25 @@ class TableEditorPanel {
 			<meta http-equiv="Content-Security-Policy" content="${csp}">`
 		);
 		
-		// スクリプトタグにnonceを追加
+		// JS/CSSのパスを修正
 		htmlContent = htmlContent.replace(
-			'<script src="https://unpkg.com/react@17/umd/react.development.js" crossorigin></script>',
-			`<script nonce="${nonce}" src="https://unpkg.com/react@17/umd/react.development.js" crossorigin></script>`
+			'<script type="module" crossorigin src="/assets/index-rAC0QrcA.js"></script>',
+			`<script type="module" crossorigin src="${jsUri}" nonce="${nonce}"></script>`
 		);
 		
 		htmlContent = htmlContent.replace(
-			'<script src="https://unpkg.com/react-dom@17/umd/react-dom.development.js" crossorigin></script>',
-			`<script nonce="${nonce}" src="https://unpkg.com/react-dom@17/umd/react-dom.development.js" crossorigin></script>`
+			'<link rel="stylesheet" crossorigin href="/assets/index-C0GIdgEj.css">',
+			`<link rel="stylesheet" crossorigin href="${cssUri}">`
 		);
 		
+		// テーブルデータを追加
 		htmlContent = htmlContent.replace(
-			'<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>',
-			`<script nonce="${nonce}" src="https://unpkg.com/@babel/standalone/babel.min.js"></script>`
-		);
-		
-		// テーブルデータのスクリプトにnonceを追加
-		htmlContent = htmlContent.replace(
-			'<script>',
-			`<script nonce="${nonce}">`
-		);
-		
-		// Babelスクリプトにnonceを追加
-		htmlContent = htmlContent.replace(
-			'<script type="text/babel">',
-			`<script nonce="${nonce}" type="text/babel">`
-		);
-		
-		// テーブルデータのプレースホルダーを置換
-		htmlContent = htmlContent.replace(
-			'TABLE_DATA_PLACEHOLDER',
-			tableDataJson
+			'<div id="root"></div>',
+			`<div id="root"></div>
+			<script nonce="${nonce}">
+				window.tableData = ${tableDataJson};
+				window.vscode = acquireVsCodeApi();
+			</script>`
 		);
 		
 		return htmlContent;
@@ -449,9 +436,9 @@ class TableEditorPanel {
 				} else {
 					vscode.window.showErrorMessage('テーブルの更新に失敗しました');
 				}
-			}).catch(error => {
+			}, error => {
 				console.error('テーブル更新中にエラーが発生しました:', error);
-				vscode.window.showErrorMessage(`テーブル更新中にエラーが発生しました: ${error.message}`);
+				vscode.window.showErrorMessage(`テーブル更新中にエラーが発生しました: ${error instanceof Error ? error.message : String(error)}`);
 			});
 		} catch (error) {
 			console.error('テーブル更新中にエラーが発生しました:', error);
@@ -573,9 +560,9 @@ function formatTable(editor: vscode.TextEditor, tableData: TableData) {
 			} else {
 				vscode.window.showErrorMessage('テーブルの整形に失敗しました');
 			}
-		}).catch(error => {
+		}, error => {
 			console.error('テーブル整形中にエラーが発生しました:', error);
-			vscode.window.showErrorMessage(`テーブル整形中にエラーが発生しました: ${error.message}`);
+			vscode.window.showErrorMessage(`テーブル整形中にエラーが発生しました: ${error instanceof Error ? error.message : String(error)}`);
 		});
 	} catch (error) {
 		console.error('テーブル整形中にエラーが発生しました:', error);
