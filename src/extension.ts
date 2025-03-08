@@ -1,7 +1,5 @@
 import * as vscode from 'vscode';
 import * as fs from 'fs';
-import { convertToMarkdown } from './utils/markdownConverter';
-import { TableData as EditableTableData, CellData } from './types/table';
 
 // テーブル検出用の正規表現
 const TABLE_REGEX = /^\s*\|(.+)\|\s*$/;
@@ -104,7 +102,7 @@ function updateDecorations(editor: vscode.TextEditor) {
 					if (table.startLine < document.lineCount) {
 						const line = document.lineAt(table.startLine);
 						codeLenses.push(new vscode.CodeLens(line.range, {
-							title: '📝 テーブル編集',
+							title: '📝',
 							command: 'beautiful-markdown-editor.editTable',
 							arguments: [table.startLine]
 						}));
@@ -378,7 +376,6 @@ class TableEditorPanel {
 	}
 
 	private _updateTable(updatedTableData: TableData, closeWebview: boolean, markdownTableFromWebview?: string) {
-		console.log("updatedTableData", updatedTableData);
 		try {
 			// エディタが有効かどうかを確認
 			if (!this._editor || !this._editor.document || this._editor.document.isClosed) {
@@ -392,24 +389,16 @@ class TableEditorPanel {
 				this._editor = activeEditor;
 			}
 			
-			// テーブルをMarkdown形式に変換
-			let markdownTable;
-			if (markdownTableFromWebview) {
-				// Webviewから受け取ったMarkdownテーブルを使用
-				markdownTable = markdownTableFromWebview;
-			} else {
-				// 従来の方法でMarkdownテーブルを生成
-				markdownTable = this._convertToMarkdownTable(updatedTableData);
-			}
-			
 			// エディタを更新
 			const edit = new vscode.WorkspaceEdit();
 			const range = new vscode.Range(
-				new vscode.Position(updatedTableData.startLine - 1, 0),
-				new vscode.Position(updatedTableData.endLine, 0)
+				new vscode.Position(Math.max(1, updatedTableData.startLine - 1), 0),
+				new vscode.Position(updatedTableData.endLine, 999999)
 			);
 			
-			edit.replace(this._editor.document.uri, range, markdownTable);
+			// テーブルをMarkdown形式に変換
+			const markdown = markdownTableFromWebview || "";
+			edit.replace(this._editor.document.uri, range, markdown);
 			
 			// 変更を適用
 			vscode.workspace.applyEdit(edit).then(success => {
@@ -429,38 +418,6 @@ class TableEditorPanel {
 		}
 	}
 
-	private _convertToMarkdownTable(tableData: TableData): string {
-		// TableDataをutils/markdownConverter.tsのTableData形式に変換
-		const convertedData = this._convertToTableDataFormat(tableData);
-		
-		// convertToMarkdown関数を使用してMarkdownテーブルを生成
-		return convertToMarkdown(convertedData);
-	}
-	
-	/**
-	 * TableDataをutils/markdownConverter.tsのTableData形式に変換
-	 */
-	private _convertToTableDataFormat(tableData: TableData): EditableTableData {
-		// ヘッダー行を作成
-		const headerRow = tableData.headers.map(header => ({
-			value: header,
-			isEditing: false,
-			width: getStringWidth(header)
-		}));
-		
-		// データ行を作成
-		const dataRows = tableData.rows.map(row => 
-			row.map(cell => ({
-				value: cell,
-				isEditing: false,
-				width: getStringWidth(cell)
-			}))
-		);
-		
-		// ヘッダー行とデータ行を結合
-		return [headerRow, ...dataRows];
-	}
-
 	public dispose() {
 		TableEditorPanel.currentPanel = undefined;
 
@@ -473,37 +430,6 @@ class TableEditorPanel {
 			}
 		}
 	}
-}
-
-// 全角文字を考慮した文字列の表示幅を取得する関数
-function getStringWidth(str: string): number {
-	let width = 0;
-	for (let i = 0; i < str.length; i++) {
-		const code = str.charCodeAt(i);
-		// 全角文字（日本語など）は幅2としてカウント
-		if (
-			(code >= 0x3000 && code <= 0x9FFF) ||   // CJK統合漢字、ひらがな、カタカナなど
-			(code >= 0xFF00 && code <= 0xFFEF) ||   // 全角英数字
-			(code >= 0x20000 && code <= 0x2FFFF)    // CJK統合漢字拡張
-		) {
-			width += 2;
-		} else {
-			width += 1;
-		}
-	}
-	return width;
-}
-
-// 全角文字を考慮してパディングする関数
-function padEndWithFullWidth(str: string, width: number): string {
-	const currentWidth = getStringWidth(str);
-	if (currentWidth >= width) {
-		return str;
-	}
-	
-	// 必要なスペースの数
-	const paddingSize = width - currentWidth;
-	return str + ' '.repeat(paddingSize);
 }
 
 // ランダムなnonceを生成する関数

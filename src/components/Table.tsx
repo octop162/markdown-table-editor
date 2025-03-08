@@ -12,7 +12,8 @@ import { IconButton } from './IconButton'
 import { IconType } from '../types/icons'
 
 type TableProps = {
-  initialData: TableData
+  initialData: TableData,
+  onSave: (markdown: string) => void
 }
 
 // 文字揃えの型定義
@@ -362,11 +363,6 @@ export const Table: FC<TableProps> = ({ initialData, onSave }) => {
             title="ペースト (Ctrl+V)"
           />
           <IconButton
-            iconType={IconType.MARKDOWN}
-            onClick={copyAsMarkdown}
-            title="Markdownとしてコピー"
-          />
-          <IconButton
             iconType={IconType.SELECT_ALL}
             onClick={selectAllCells}
             title="すべて選択 (Ctrl+A)"
@@ -463,7 +459,10 @@ export const Table: FC<TableProps> = ({ initialData, onSave }) => {
         <div className={styles.toolbarGroup}>
           <IconButton
             iconType={IconType.SAVE}
-            onClick={onSave}
+            onClick={() => {
+              const markdown = convertToMarkdown(data, columnAligns)
+              onSave(markdown);
+            }}
             title="保存"
           />
         </div>

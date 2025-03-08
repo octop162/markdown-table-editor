@@ -112,7 +112,6 @@ function sendMessage(message: Record<string, unknown>) {
 function MainApp() {
   const [tableData, setTableData] = useState<EditableTableData | null>(null);
   const [originalTableData, setOriginalTableData] = useState<TableDataFromVSCode | null>(null);
-  const [currentTableData, setCurrentTableData] = useState<EditableTableData | null>(null);
 
   // VSCodeからのメッセージを受信
   useEffect(() => {
@@ -146,56 +145,21 @@ function MainApp() {
     };
   }, []);
 
-  // EditableTableからのデータ更新を記録する関数
-  const handleTableUpdate = (updatedData: EditableTableData) => {
-    // 現在のテーブルデータを保存（保存ボタン用）
-    setCurrentTableData(updatedData);
-  };
-
   // 保存ボタンが押されたときの処理
-  const handleSaveTable = () => {
-    console.log("handleSaveTable");
-    if (!originalTableData || !currentTableData) return;
+  const handleSaveTable = (markdown: string) => {
+    if (!originalTableData ) return;
     
     // EditableTableのデータ形式からVSCode形式に変換
     const vscodeData = {
       startLine: originalTableData.startLine,
       endLine: originalTableData.endLine,
-      headers: currentTableData.rows[0].cells.map(cell => cell.value),
-      rows: currentTableData.rows.slice(1).map(row => row.cells.map(cell => cell.value))
     };
-    
-    // utils/markdownConverter.tsのconvertToMarkdown関数を使用してMarkdownテーブルを生成
-    // TableDataに変換
-    const tableData = [
-      // ヘッダー行
-      currentTableData.rows[0].cells.map(cell => ({
-        value: cell.value,
-        isEditing: false,
-        width: cell.value.length * 8 // 簡易的な幅計算
-      })),
-      // データ行
-      ...currentTableData.rows.slice(1).map(row => 
-        row.cells.map(cell => ({
-          value: cell.value,
-          isEditing: false,
-          width: cell.value.length * 8 // 簡易的な幅計算
-        }))
-      )
-    ];
-    
-    // 文字揃えの設定（すべて左揃えとする）
-    const columnAligns = Array(currentTableData.columns.length).fill('left');
-    
-    // Markdownテーブルを生成
-    const markdownTable = convertToMarkdown(tableData, columnAligns);
-    console.log('生成されたMarkdownテーブル:', markdownTable);
     
     // VSCodeに更新を通知して、webviewを閉じるように指示
     sendMessage({
       command: 'updateTable',
       tableData: vscodeData,
-      markdownTable: markdownTable, // 生成したMarkdownテーブルを追加
+      markdownTable: markdown, // 生成したMarkdownテーブルを追加
       closeWebview: true // webviewを閉じるフラグを追加
     });
   };
@@ -203,7 +167,6 @@ function MainApp() {
   return (
     <App 
       tableData={tableData} 
-      onTableUpdate={handleTableUpdate} 
       onSaveTable={handleSaveTable}
     />
   );
