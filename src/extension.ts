@@ -5,6 +5,9 @@ import * as fs from 'fs';
 const TABLE_REGEX = /^\s*\|(.+)\|\s*$/;
 const SEPARATOR_REGEX = /^\s*\|(\s*[-:]+[-|\s:]*)\|\s*$/;
 
+// CodeLensプロバイダーを保持する変数
+let currentCodeLensProvider: vscode.Disposable | undefined;
+
 export function activate(context: vscode.ExtensionContext) {
 	if (vscode.window.activeTextEditor?.document.languageId === 'markdown') {
 
@@ -29,8 +32,7 @@ export function activate(context: vscode.ExtensionContext) {
 		// テキストエディタの変更を監視
 		const changeActiveEditor = vscode.window.onDidChangeActiveTextEditor(editor => {
 			if (editor && editor.document.languageId === 'markdown') {
-				const disposable = updateDecorations(editor);
-				context.subscriptions.push(disposable);
+				updateDecorations(editor);
 			}
 		});
 		
@@ -39,15 +41,13 @@ export function activate(context: vscode.ExtensionContext) {
 			const editor = vscode.window.activeTextEditor;
 			if (editor && event.document === editor.document && 
 				event.document.languageId === 'markdown') {
-				const disposable = updateDecorations(editor);
-				context.subscriptions.push(disposable);
+				updateDecorations(editor);
 			}
 		});
 		
 		// 初期表示時にデコレーションを更新
 		if (vscode.window.activeTextEditor) {
-			const disposable = updateDecorations(vscode.window.activeTextEditor);
-			context.subscriptions.push(disposable);
+			updateDecorations(vscode.window.activeTextEditor);
 		}
 		
 		context.subscriptions.push(
@@ -61,6 +61,12 @@ export function activate(context: vscode.ExtensionContext) {
 // テーブル行を検出してボタンを表示するデコレーション
 function updateDecorations(editor: vscode.TextEditor) {
 	try {
+		// 既存のCodeLensプロバイダーがあれば破棄
+		if (currentCodeLensProvider) {
+			currentCodeLensProvider.dispose();
+			currentCodeLensProvider = undefined;
+		}
+		
 		const document = editor.document;
 		
 		// 検出されたテーブルを格納する配列
@@ -93,7 +99,7 @@ function updateDecorations(editor: vscode.TextEditor) {
 		}
 		
 		// クリックイベントを登録
-		const clickDisposable = vscode.languages.registerCodeLensProvider('markdown', {
+		currentCodeLensProvider = vscode.languages.registerCodeLensProvider('markdown', {
 			provideCodeLenses(document) {
 				const codeLenses: vscode.CodeLens[] = [];
 				
@@ -112,11 +118,8 @@ function updateDecorations(editor: vscode.TextEditor) {
 				return codeLenses;
 			}
 		});
-		
-		return clickDisposable;
 	} catch (error) {
 		console.error('デコレーションの更新中にエラーが発生しました:', error);
-		return vscode.Disposable.from();
 	}
 }
 
