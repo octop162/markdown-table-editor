@@ -102,7 +102,7 @@ export const calculateCellWidth = (text: string, minWidth = 80, charWidth = 8): 
   const maxLineWidth = Math.max(...lineWidths);
   
   // 最小幅と計算幅を比較して大きい方を返す
-  return Math.max(minWidth, maxLineWidth + 16); // パディング分を追加
+  return Math.max(minWidth, maxLineWidth + 15); // パディング分を追加
 };
 
 /**

@@ -35,3 +35,11 @@
   font-size: 13px;
   white-space: nowrap;
 } 
+
+:global(.vscode-dark) .toolbar {
+  background-color: #000;
+}
+
+:global(.vscode-light) .toolbar {
+  background-color: #fff;
+}

@@ -11,6 +11,18 @@ import { convertToMarkdown } from '../utils/markdownConverter'
 import { IconButton } from './IconButton'
 import { IconType } from '../types/icons'
 
+// VSCodeのテーマ情報の型定義
+interface VSCodeTheme {
+  isDark: boolean;
+}
+
+// グローバル変数の型拡張
+declare global {
+  interface Window {
+    VS_CODE_THEME?: VSCodeTheme;
+  }
+}
+
 type TableProps = {
   initialData: TableData,
   onSave: (markdown: string) => void
@@ -37,6 +49,15 @@ export const Table: FC<TableProps> = ({ initialData, onSave }) => {
   const tableRef = useRef<HTMLDivElement>(null)
   const [markdownCopied, setMarkdownCopied] = useState(false)
   const [columnAligns, setColumnAligns] = useState<TextAlign[]>(Array(initialData[0].length).fill('left'))
+  const [isDarkTheme, setIsDarkTheme] = useState(false)
+  
+  // VSCodeのテーマ情報を取得
+  useEffect(() => {
+    const theme = window.VS_CODE_THEME;
+    if (theme) {
+      setIsDarkTheme(theme.isDark);
+    }
+  }, []);
   
   // セル編集情報のための参照
   const hasUserEditedRef = useRef(false)
@@ -514,7 +535,7 @@ export const Table: FC<TableProps> = ({ initialData, onSave }) => {
     <div
       ref={tableRef}
       tabIndex={0}
-      className={styles.tableWrapper}
+      className={`${styles.tableWrapper} ${isDarkTheme ? styles.darkTheme : ''}`}
       onMouseUp={handleMouseUp}
       onClick={handleTableClick}
     >

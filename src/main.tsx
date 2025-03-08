@@ -50,6 +50,10 @@ interface EditableTableData {
 
 // VSCodeから受け取ったテーブルデータをEditableTable用に変換する関数
 function convertToEditableTableData(data: TableDataFromVSCode): EditableTableData {
+  // <br>タグを改行に置換
+  data.headers = data.headers.map(header => header.replace(/<br>/g, '\n'));
+  data.rows = data.rows.map(row => row.map(cell => cell.replace(/<br>/g, '\n')));
+
   // ヘッダー行を含めた列数を取得
   const columnCount = Math.max(
     data.headers.length,

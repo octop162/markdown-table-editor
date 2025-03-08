@@ -19,6 +19,7 @@
 .toolbarGroup {
   display: flex;
   margin-right: 8px;
+  margin-bottom: 8px;
 }
 
 .toolbarButton {
@@ -63,7 +64,6 @@
 .tableContainer {
   flex: 1;
   overflow: auto;
-  border: 1px solid #ccc;
 }
 
 .table {
@@ -71,6 +71,7 @@
   width: auto;
   table-layout: fixed;
   height: 100%;
+  font-size: 14px;
 }
 
 .table tr {
@@ -143,4 +144,13 @@
 @keyframes fadeOut {
   from { opacity: 1; transform: translateY(0); }
   to { opacity: 0; transform: translateY(-20px); }
-} 
+}  
+
+/* このなかにダークモード時のスタイルを記述します */
+:global(.vscode-dark) .toolbar {
+  background-color: #333;
+}
+
+:global(.vscode-light) .toolbar {
+  background-color: #fff;
+}

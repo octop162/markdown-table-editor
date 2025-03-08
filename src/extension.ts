@@ -347,6 +347,9 @@ class TableEditorPanel {
 			font-src ${webview.cspSource};
 		`;
 		
+		// VSCodeのテーマ情報を取得
+		const isDarkTheme = vscode.window.activeColorTheme && vscode.window.activeColorTheme.kind === vscode.ColorThemeKind.Dark;
+		
 		// HTMLにCSPとnonceを追加
 		htmlContent = htmlContent.replace(
 			'<head>',
@@ -355,6 +358,10 @@ class TableEditorPanel {
 			<script nonce="${nonce}">
 				// SVGファイルのパスを設定
 				window.ICONS_BASE_PATH = "${iconsUri.toString()}";
+				// VSCodeのテーマ情報を設定
+				window.VS_CODE_THEME = {
+					isDark: ${isDarkTheme}
+				};
 			</script>`
 		);
 		
@@ -395,7 +402,7 @@ class TableEditorPanel {
 			// エディタを更新
 			const edit = new vscode.WorkspaceEdit();
 			const range = new vscode.Range(
-				new vscode.Position(Math.max(1, updatedTableData.startLine - 1), 0),
+				new vscode.Position(updatedTableData.startLine, 0),
 				new vscode.Position(updatedTableData.endLine, 999999)
 			);
 			

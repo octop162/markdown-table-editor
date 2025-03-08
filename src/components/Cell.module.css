@@ -154,3 +154,22 @@
   z-index: 10;
   background-color: #fff;
 } 
+
+/* このなかにダークモード時のスタイルを記述します */
+:global(.vscode-dark) .toolbar {
+  background-color: #333;
+}
+
+:global(.vscode-dark) .editing {
+  box-shadow: 0 0 0 2px #4a90e2;
+  z-index: 10;
+  background-color: #555;
+} 
+
+:global(.vscode-light) .editing {
+  background-color: #fff;
+}
+
+:global(.vscode-light) .editing {
+  background-color: #fff;
+} 
