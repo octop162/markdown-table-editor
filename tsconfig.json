@@ -6,7 +6,7 @@
 			"ES2022"
 		],
 		"sourceMap": true,
-		"rootDir": "src",
+		"rootDir": "src_old",
 		"strict": true, 
 	},
 	"files": [],

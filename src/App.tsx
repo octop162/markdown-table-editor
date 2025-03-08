@@ -1,39 +1,20 @@
-import { FC } from 'react';
-import EditableTable from "./components/EditableTable";
+import { Table } from './components/Table';
+import { TableData } from './types/table';
 
-// EditableTableで使用するデータ形式
-interface EditableTableData {
-  rows: {
-    id: string;
-    cells: { id: string; value: string }[];
-  }[];
-  columns: {
-    id: string;
-    index: number;
-    width: string;
-  }[];
-}
+const initialData: TableData = Array(5).fill(null).map(() =>
+  Array(5).fill(null).map(() => ({
+    value: '',
+    isEditing: false,
+    width: 80, // デフォルト幅を設定
+  }))
+)
 
-interface AppProps {
-  tableData: EditableTableData | null;
-  onTableUpdate: (updatedData: EditableTableData) => void;
-  onSaveTable: () => void;
-}
-
-const App: FC<AppProps> = ({ tableData, onTableUpdate, onSaveTable }) => {
+function App() {
   return (
-    <div>
-      {tableData ? (
-        <EditableTable 
-          initialData={tableData} 
-          onUpdate={onTableUpdate}
-          onSave={onSaveTable}
-        />
-      ) : (
-        <div className="loading">テーブルデータを読み込み中...</div>
-      )}
+    <div className="app">
+      <Table initialData={initialData} />
     </div>
-  );
-};
+  )
+}
 
-export default App;
+export default App

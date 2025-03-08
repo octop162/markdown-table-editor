@@ -1,0 +1,37 @@
+.iconButton {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 6px 10px;
+  background-color: #fff;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 14px;
+  transition: background-color 0.2s;
+  gap: 5px;
+}
+
+.iconButton:hover:not(:disabled) {
+  background-color: #f0f0f0;
+}
+
+.iconButton:active:not(:disabled) {
+  background-color: #e0e0e0;
+}
+
+.iconButton:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.icon {
+  width: 18px;
+  height: 18px;
+  display: block;
+}
+
+.label {
+  font-size: 13px;
+  white-space: nowrap;
+} 
