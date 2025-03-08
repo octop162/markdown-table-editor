@@ -269,7 +269,7 @@ export const useClipboard = ({
     } catch (err) {
       console.error('クリップボードからの読み取りに失敗しました:', err);
     }
-  }, [currentCell, tableData, updateMultipleCellsWithDifferentValues, selectedCells, parseCellValueFromExcel, getSelectedCellPositions]);
+  }, [currentCell, updateMultipleCellsWithDifferentValues, selectedCells, parseCellValueFromExcel, getSelectedCellPositions]);
 
   return {
     copySelectedCells,

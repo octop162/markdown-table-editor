@@ -17,7 +17,7 @@ describe('Table', () => {
   ]
 
   it('正しいデータが表示されること', () => {
-    render(<Table initialData={mockData} />)
+    render(<Table initialData={mockData} onSave={() => {}} />)
     
     expect(screen.getByText('セル1')).toBeInTheDocument()
     expect(screen.getByText('セル2')).toBeInTheDocument()
@@ -26,7 +26,7 @@ describe('Table', () => {
   })
   
   it('行を追加できること', () => {
-    render(<Table initialData={mockData} />)
+    render(<Table initialData={mockData} onSave={() => {}} />)
     
     // 行追加ボタンを探して押す
     const addRowButton = screen.getByRole('button', { name: /行を追加/i })
@@ -38,7 +38,7 @@ describe('Table', () => {
   })
   
   it('列を追加できること', () => {
-    render(<Table initialData={mockData} />)
+    render(<Table initialData={mockData} onSave={() => {}} />)
     
     // 列追加ボタンを探して押す
     const addColumnButton = screen.getByRole('button', { name: /列を追加/i })

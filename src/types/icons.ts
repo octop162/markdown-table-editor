@@ -30,6 +30,7 @@ export enum IconType {
  */
 export const getIconPath = (iconType: IconType): string => {
   // グローバル変数ICONS_BASE_PATHが設定されている場合はそれを使用
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const basePath = (window as any).ICONS_BASE_PATH || './icons';
   return `${basePath}/${iconType}.svg`;
 }; 

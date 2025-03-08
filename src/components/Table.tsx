@@ -47,7 +47,6 @@ const alignButtons: AlignButton[] = [
 
 export const Table: FC<TableProps> = ({ initialData, onSave }) => {
   const tableRef = useRef<HTMLDivElement>(null)
-  const [markdownCopied, setMarkdownCopied] = useState(false)
   const [columnAligns, setColumnAligns] = useState<TextAlign[]>(Array(initialData[0].length).fill('left'))
   const [isDarkTheme, setIsDarkTheme] = useState(false)
   
@@ -171,24 +170,6 @@ export const Table: FC<TableProps> = ({ initialData, onSave }) => {
     // 列を削除
     removeColumn()
   }
-
-  // Markdownとしてクリップボードにコピー
-  const copyAsMarkdown = useCallback(() => {
-    if (!data || data.length === 0) return
-
-    // 常に全体をコピー
-    const markdown = convertToMarkdown(data, columnAligns)
-    navigator.clipboard.writeText(markdown)
-
-    setMarkdownCopied(true)
-    setTimeout(() => setMarkdownCopied(false), 2000)
-  }, [data, columnAligns])
-
-  // データを保存する関数
-  const saveData = useCallback(() => {
-    console.log('データを保存します:', data);
-    // ここでデータの保存処理を実装（現在はconsole.logのみ）
-  }, [data]);
 
   // セル値が変更されたときの処理
   const handleCellEdit = (value: string) => {
@@ -487,12 +468,6 @@ export const Table: FC<TableProps> = ({ initialData, onSave }) => {
             title="保存"
           />
         </div>
-
-        {markdownCopied && (
-          <div className={styles.notification}>
-            Markdownとしてコピーしました
-          </div>
-        )}
       </div>
     )
   }

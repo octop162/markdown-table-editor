@@ -4,20 +4,6 @@ import styles from './Cell.module.css'
 // 文字揃えの型定義
 type TextAlign = 'left' | 'center' | 'right'
 
-// リッチテキスト編集ツールバーのボタン定義
-type FormatButton = {
-  command: string
-  icon: string
-  title: string
-}
-
-// 文字揃えボタンの定義
-type AlignButton = {
-  align: TextAlign
-  icon: string
-  title: string
-}
-
 type CellProps = {
   value: string
   isEditing: boolean
@@ -38,21 +24,6 @@ type CellProps = {
   onStartEditing?: () => void
 }
 
-// フォーマットボタンの定義
-const formatButtons: FormatButton[] = [
-  { command: 'bold', icon: '𝐁', title: '太字 (Ctrl+B)' },
-  { command: 'italic', icon: '𝐼', title: '斜体 (Ctrl+I)' },
-  { command: 'underline', icon: '𝐔', title: '下線 (Ctrl+U)' },
-  { command: 'strikeThrough', icon: '𝐒', title: '取り消し線' },
-]
-
-// 文字揃えボタンの定義
-const alignButtons: AlignButton[] = [
-  { align: 'left', icon: '◀', title: '左揃え' },
-  { align: 'center', icon: '■', title: '中央揃え' },
-  { align: 'right', icon: '▶', title: '右揃え' },
-]
-
 export const Cell: FC<CellProps> = ({
   value,
   isEditing,
@@ -68,7 +39,6 @@ export const Cell: FC<CellProps> = ({
   onMouseMove,
   onMouseEnter,
   onMouseUp,
-  onAlignChange,
   textAlign = 'left',
 }) => {
   const editableRef = useRef<HTMLDivElement>(null)
@@ -78,7 +48,6 @@ export const Cell: FC<CellProps> = ({
   const isComposingRef = useRef(false)
   const inputValueRef = useRef(value || '')  // 入力値を参照するためのref
   const lastNotifiedValueRef = useRef(value || '')  // 最後に通知した値を記録するref
-  const [showToolbar, setShowToolbar] = useState(false)
 
   // セルのスタイルを計算
   const cellStyle: CSSProperties = {
@@ -108,7 +77,6 @@ export const Cell: FC<CellProps> = ({
       inputValueRef.current = value || ''
       lastNotifiedValueRef.current = value || ''
       setHasUserEdited(false)
-      setShowToolbar(true)
       
       // フォーカスを当てて、テキストを全選択
       setTimeout(() => {
@@ -130,12 +98,6 @@ export const Cell: FC<CellProps> = ({
       inputValueRef.current = value || ''
       lastNotifiedValueRef.current = value || ''
       setHasUserEdited(false)
-      setShowToolbar(false)
-    }
-    
-    // 編集モードが終了したらツールバーを非表示
-    if (prevIsEditing && !isEditing) {
-      setShowToolbar(false)
     }
     
     setPrevIsEditing(isEditing)
@@ -338,21 +300,6 @@ export const Cell: FC<CellProps> = ({
   const handleMouseUp = () => {
     if (onMouseUp) {
       onMouseUp()
-    }
-  }
-
-  // フォーマットボタンのクリック処理
-  const handleFormatClick = (command: string) => {
-    document.execCommand(command, false)
-    if (editableRef.current) {
-      editableRef.current.focus()
-    }
-  }
-
-  // 文字揃えボタンのクリック処理
-  const handleAlignClick = (align: TextAlign) => {
-    if (onAlignChange) {
-      onAlignChange(align)
     }
   }
 

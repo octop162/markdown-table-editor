@@ -221,7 +221,7 @@ export const useKeyboardEvents = (
       }
       return
     }
-  }, [data]);
+  }, []);
 
   // キーアップイベントハンドラー
   const handleKeyUp = useCallback((e: KeyboardEvent) => {
