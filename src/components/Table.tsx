@@ -32,7 +32,7 @@ const alignButtons: AlignButton[] = [
   { align: 'right', icon: IconType.ALIGN_RIGHT, title: '右揃え' },
 ]
 
-export const Table: FC<TableProps> = ({ initialData }) => {
+export const Table: FC<TableProps> = ({ initialData, onSave }) => {
   const tableRef = useRef<HTMLDivElement>(null)
   const [markdownCopied, setMarkdownCopied] = useState(false)
   const [columnAligns, setColumnAligns] = useState<TextAlign[]>(Array(initialData[0].length).fill('left'))
@@ -463,7 +463,7 @@ export const Table: FC<TableProps> = ({ initialData }) => {
         <div className={styles.toolbarGroup}>
           <IconButton
             iconType={IconType.SAVE}
-            onClick={saveData}
+            onClick={onSave}
             title="保存"
           />
         </div>

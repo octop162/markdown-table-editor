@@ -1,10 +1,11 @@
 import * as vscode from 'vscode';
 import * as fs from 'fs';
+import { convertToMarkdown } from './utils/markdownConverter';
+import { TableData as EditableTableData, CellData } from './types/table';
 
 // テーブル検出用の正規表現
-const TABLE_REGEX = /^\|(.+\|)+$/;
-// 区切り行の正規表現（ヘッダーと本文を区切る行）
-const SEPARATOR_REGEX = /^\|(\s*[-:]+\s*\|)+$/;
+const TABLE_REGEX = /^\s*\|(.+)\|\s*$/;
+const SEPARATOR_REGEX = /^\s*\|(\s*[-:]+[-|\s:]*)\|\s*$/;
 
 export function activate(context: vscode.ExtensionContext) {
 	if (vscode.window.activeTextEditor?.document.languageId === 'markdown') {
@@ -278,31 +279,35 @@ class TableEditorPanel {
 			this._disposables
 		);
 		
-		// メッセージ受信時のイベント
+		// メッセージを受信したときの処理
 		this._panel.webview.onDidReceiveMessage(
-			message => {
-				switch (message.command) {
-					case 'updateTable':
-						this._updateTable(message.tableData, message.closeWebview);
-						return;
-					case 'debug':
-						// デバッグメッセージを出力チャネルに表示
-						this._outputChannel.appendLine(message.message);
-						return;
-					case 'ready':
-						// Webviewが準備完了したらテーブルデータを送信
-						this._panel.webview.postMessage({
-							type: 'init',
-							tableData: this._tableData
-						});
-						return;
-					case 'getTableData':
-						// テーブルデータのリクエストに応答
-						this._panel.webview.postMessage({
-							type: 'init',
-							tableData: this._tableData
-						});
-						return;
+			async (message) => {
+				try {
+					console.log('message', message);
+					switch (message.command) {
+						case 'updateTable':
+							console.log('updateTable', message.tableData);
+							// テーブルデータを更新
+							if (message.tableData) {
+								this._updateTable(message.tableData, message.closeWebview, message.markdownTable);
+							}
+							break;
+						case 'getTableData':
+							console.log('getTableData', this._tableData);
+							// 現在のテーブルデータを送信
+							this._panel.webview.postMessage({
+								type: 'init',
+								tableData: this._tableData
+							});
+							break;
+						case 'ready':
+							// Webviewの準備完了
+							console.log('Webviewの準備完了');
+							break;
+					}
+				} catch (error) {
+					console.error('メッセージ処理中にエラーが発生しました:', error);
+					vscode.window.showErrorMessage(`エラーが発生しました: ${error}`);
 				}
 			},
 			null,
@@ -372,7 +377,7 @@ class TableEditorPanel {
 		return htmlContent;
 	}
 
-	private _updateTable(updatedTableData: TableData, closeWebview: boolean) {
+	private _updateTable(updatedTableData: TableData, closeWebview: boolean, markdownTableFromWebview?: string) {
 		console.log("updatedTableData", updatedTableData);
 		try {
 			// エディタが有効かどうかを確認
@@ -387,29 +392,36 @@ class TableEditorPanel {
 				this._editor = activeEditor;
 			}
 			
-			// Markdownテーブル形式に変換（整形あり）
-			const markdownTable = this._convertToMarkdownTable(updatedTableData);
+			// テーブルをMarkdown形式に変換
+			let markdownTable;
+			if (markdownTableFromWebview) {
+				// Webviewから受け取ったMarkdownテーブルを使用
+				markdownTable = markdownTableFromWebview;
+			} else {
+				// 従来の方法でMarkdownテーブルを生成
+				markdownTable = this._convertToMarkdownTable(updatedTableData);
+			}
 			
-			// エディタのテーブルを更新
-			this._editor.edit(editBuilder => {
-				const startPos = new vscode.Position(updatedTableData.startLine, 0);
-				const endPos = new vscode.Position(updatedTableData.endLine + 1, 0);
-				const range = new vscode.Range(startPos, endPos);
-				
-				editBuilder.replace(range, markdownTable);
-			}).then(success => {
+			// エディタを更新
+			const edit = new vscode.WorkspaceEdit();
+			const range = new vscode.Range(
+				new vscode.Position(updatedTableData.startLine - 1, 0),
+				new vscode.Position(updatedTableData.endLine, 0)
+			);
+			
+			edit.replace(this._editor.document.uri, range, markdownTable);
+			
+			// 変更を適用
+			vscode.workspace.applyEdit(edit).then(success => {
 				if (success) {
-					vscode.window.showInformationMessage('テーブルを更新しました');
-					// パネルを閉じる
+					console.log('テーブルを更新しました');
+					// Webviewを閉じる
 					if (closeWebview) {
-						this.dispose();
+						this._panel.dispose();
 					}
 				} else {
-					vscode.window.showErrorMessage('テーブルの更新に失敗しました');
+					vscode.window.showErrorMessage('テーブルの更新に失敗しました。');
 				}
-			}, error => {
-				console.error('テーブル更新中にエラーが発生しました:', error);
-				vscode.window.showErrorMessage(`テーブル更新中にエラーが発生しました: ${error instanceof Error ? error.message : String(error)}`);
 			});
 		} catch (error) {
 			console.error('テーブル更新中にエラーが発生しました:', error);
@@ -418,46 +430,35 @@ class TableEditorPanel {
 	}
 
 	private _convertToMarkdownTable(tableData: TableData): string {
-		// 各列の最大幅を計算（全角文字を考慮）
-		const columnWidths: number[] = [];
+		// TableDataをutils/markdownConverter.tsのTableData形式に変換
+		const convertedData = this._convertToTableDataFormat(tableData);
 		
-		// ヘッダーの幅をチェック
-		tableData.headers.forEach((header, index) => {
-			columnWidths[index] = getStringWidth(header);
-		});
+		// convertToMarkdown関数を使用してMarkdownテーブルを生成
+		return convertToMarkdown(convertedData);
+	}
+	
+	/**
+	 * TableDataをutils/markdownConverter.tsのTableData形式に変換
+	 */
+	private _convertToTableDataFormat(tableData: TableData): EditableTableData {
+		// ヘッダー行を作成
+		const headerRow = tableData.headers.map(header => ({
+			value: header,
+			isEditing: false,
+			width: getStringWidth(header)
+		}));
 		
-		// データ行の幅をチェック
-		tableData.rows.forEach(row => {
-			row.forEach((cell, index) => {
-				const cellWidth = getStringWidth(cell);
-				if (!columnWidths[index] || cellWidth > columnWidths[index]) {
-					columnWidths[index] = cellWidth;
-				}
-			});
-		});
-		
-		// 最小幅を設定（3文字以上）
-		const finalWidths = columnWidths.map(width => Math.max(width, 3));
-		
-		// ヘッダー行を整形
-		const headerRow = '| ' + tableData.headers.map((header, index) => 
-			padEndWithFullWidth(header, finalWidths[index])
-		).join(' | ') + ' |';
-		
-		// 区切り行を整形
-		const separatorRow = '| ' + finalWidths.map(width => 
-			'-'.repeat(width)
-		).join(' | ') + ' |';
-		
-		// データ行を整形
+		// データ行を作成
 		const dataRows = tableData.rows.map(row => 
-			'| ' + row.map((cell, index) => 
-				padEndWithFullWidth(cell, finalWidths[index])
-			).join(' | ') + ' |'
+			row.map(cell => ({
+				value: cell,
+				isEditing: false,
+				width: getStringWidth(cell)
+			}))
 		);
 		
-		// テーブル全体
-		return [headerRow, separatorRow, ...dataRows].join('\n') + '\n';
+		// ヘッダー行とデータ行を結合
+		return [headerRow, ...dataRows];
 	}
 
 	public dispose() {
