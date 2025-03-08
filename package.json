@@ -2,13 +2,15 @@
   "name": "markdown-table-editor",
   "displayName": "markdown-table-editor",
   "description": "markdown table editor",
+  "publisher": "octop162",
+  "version": "0.0.1",
+  "license": "MIT",
+  "engines": {
+    "vscode": "^1.97.0"
+  },
   "repository": {
     "type": "git",
     "url": "https://github.com/octop162/markdown-table-editor"
-  },
-  "version": "0.0.1",
-  "engines": {
-    "vscode": "^1.97.0"
   },
   "categories": [
     "Other"
