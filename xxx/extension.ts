@@ -314,7 +314,7 @@ class TableEditorPanel {
 
 	private _update() {
 		const webview = this._panel.webview;
-		this._panel.title = 'テーブル編集';
+		this._panel.title = 'Edit Table';
 		this._panel.webview.html = this._getHtmlForWebview(webview);
 	}
 

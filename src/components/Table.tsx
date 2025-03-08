@@ -346,13 +346,13 @@ export const Table: FC<TableProps> = ({ initialData, onSave }) => {
             iconType={IconType.COPY}
             onClick={copySelectedCells}
             disabled={!selection}
-            title="コピー (Ctrl+C)"
+            title="Copy (Ctrl+C)"
           />
           <IconButton
             iconType={IconType.CUT}
             onClick={cutSelectedCells}
             disabled={!selection}
-            title="カット (Ctrl+X)"
+            title="Cut (Ctrl+X)"
           />
           <IconButton
             iconType={IconType.PASTE}
@@ -362,18 +362,18 @@ export const Table: FC<TableProps> = ({ initialData, onSave }) => {
               }
             }}
             disabled={!currentCell}
-            title="ペースト (Ctrl+V)"
+            title="Paste (Ctrl+V)"
           />
           <IconButton
             iconType={IconType.SELECT_ALL}
             onClick={selectAllCells}
-            title="すべて選択 (Ctrl+A)"
+            title="Select All (Ctrl+A)"
           />
           <IconButton
             iconType={IconType.CLEAR_SELECTION}
             onClick={clearSelectedCells}
             disabled={!selection}
-            title="選択範囲をクリア (Delete)"
+            title="Clear Selection (Delete)"
           />
         </div>
 
@@ -383,24 +383,24 @@ export const Table: FC<TableProps> = ({ initialData, onSave }) => {
           <IconButton
             iconType={IconType.ADD_ROW}
             onClick={addRow}
-            title="行を追加"
+            title="Add Row"
           />
           <IconButton
             iconType={IconType.ADD_COLUMN}
             onClick={addColumn}
-            title="列を追加"
+            title="Add Column"
           />
           <IconButton
             iconType={IconType.REMOVE_ROW}
             onClick={safeRemoveRow}
             disabled={data.length <= 1}
-            title="行を削除"
+            title="Remove Row"
           />
           <IconButton
             iconType={IconType.REMOVE_COLUMN}
             onClick={safeRemoveColumn}
             disabled={data[0].length <= 1}
-            title="列を削除"
+            title="Remove Column"
           />
         </div>
 
@@ -411,13 +411,13 @@ export const Table: FC<TableProps> = ({ initialData, onSave }) => {
             iconType={IconType.UNDO}
             onClick={undoAction}
             disabled={!canUndo}
-            title="元に戻す (Ctrl+Z)"
+            title="Undo (Ctrl+Z)"
           />
           <IconButton
             iconType={IconType.REDO}
             onClick={redoAction}
             disabled={!canRedo}
-            title="やり直し (Ctrl+Y)"
+            title="Redo (Ctrl+Y)"
           />
         </div>
 
@@ -452,7 +452,7 @@ export const Table: FC<TableProps> = ({ initialData, onSave }) => {
           <IconButton
             iconType={IconType.UPDATE_WIDTH}
             onClick={updateAllCellWidths}
-            title="横幅を自動調節"
+            title="Auto Adjust Width"
           />
         </div>
 
@@ -465,7 +465,7 @@ export const Table: FC<TableProps> = ({ initialData, onSave }) => {
               const markdown = convertToMarkdown(data, columnAligns)
               onSave(markdown);
             }}
-            title="保存"
+            title="Save"
           />
         </div>
       </div>

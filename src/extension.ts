@@ -238,7 +238,7 @@ class TableEditorPanel {
 		// 新しいパネルを作成
 		const panel = vscode.window.createWebviewPanel(
 			'tableEditor',
-			'テーブル編集',
+			'Edit Table',
 			column,
 			{
 				enableScripts: true,
