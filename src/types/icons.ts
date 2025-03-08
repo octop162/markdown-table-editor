@@ -29,5 +29,7 @@ export enum IconType {
  * @returns アイコンのパス
  */
 export const getIconPath = (iconType: IconType): string => {
-  return `/icons/${iconType}.svg`;
+  // グローバル変数ICONS_BASE_PATHが設定されている場合はそれを使用
+  const basePath = (window as any).ICONS_BASE_PATH || './icons';
+  return `${basePath}/${iconType}.svg`;
 }; 

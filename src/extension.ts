@@ -243,7 +243,8 @@ class TableEditorPanel {
 				enableScripts: true,
 				retainContextWhenHidden: true,
 				localResourceRoots: [
-					vscode.Uri.joinPath(extensionUri, 'dist')
+					vscode.Uri.joinPath(extensionUri, 'dist'),
+					vscode.Uri.joinPath(extensionUri, 'dist', 'webview')
 				]
 			}
 		);
@@ -328,6 +329,7 @@ class TableEditorPanel {
 		// Webviewで使用するリソースのURIを取得
 		const jsUri = webview.asWebviewUri(vscode.Uri.joinPath(this._extensionUri, 'dist', 'webview', 'assets', 'index.js'));
 		const cssUri = webview.asWebviewUri(vscode.Uri.joinPath(this._extensionUri, 'dist', 'webview', 'assets', 'index.css'));
+		const iconsUri = webview.asWebviewUri(vscode.Uri.joinPath(this._extensionUri, 'dist', 'webview', 'icons'));
 		
 		// CSPを設定
 		const nonce = getNonce();
@@ -335,7 +337,7 @@ class TableEditorPanel {
 			default-src 'none';
 			style-src ${webview.cspSource} 'unsafe-inline';
 			script-src ${webview.cspSource} 'nonce-${nonce}';
-			img-src ${webview.cspSource} https:;
+			img-src ${webview.cspSource} https: data:;
 			font-src ${webview.cspSource};
 		`;
 		
@@ -343,7 +345,11 @@ class TableEditorPanel {
 		htmlContent = htmlContent.replace(
 			'<head>',
 			`<head>
-			<meta http-equiv="Content-Security-Policy" content="${csp}">`
+			<meta http-equiv="Content-Security-Policy" content="${csp}">
+			<script nonce="${nonce}">
+				// SVGファイルのパスを設定
+				window.ICONS_BASE_PATH = "${iconsUri.toString()}";
+			</script>`
 		);
 		
 		// JS/CSSのパスを修正
