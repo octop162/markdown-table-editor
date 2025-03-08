@@ -32,6 +32,7 @@ interface TableDataFromVSCode {
   endLine: number;
   headers: string[];
   rows: string[][];
+  columnCount?: number; // 列数の情報を追加
 }
 
 // EditableTableで使用するデータ形式
@@ -53,8 +54,8 @@ function convertToEditableTableData(data: TableDataFromVSCode): EditableTableDat
   data.headers = data.headers.map(header => header.replace(/<br>/g, '\n'));
   data.rows = data.rows.map(row => row.map(cell => cell.replace(/<br>/g, '\n')));
 
-  // ヘッダー行を含めた列数を取得
-  const columnCount = Math.max(
+  // 列数を取得（VSCodeから提供された列数があればそれを使用、なければ最大列数を計算）
+  const columnCount = data.columnCount !== undefined ? data.columnCount : Math.max(
     data.headers.length,
     ...data.rows.map(row => row.length)
   );
@@ -66,35 +67,32 @@ function convertToEditableTableData(data: TableDataFromVSCode): EditableTableDat
     width: '100px' // デフォルト幅
   }));
 
-  // 行データを変換（ヘッダー行を含む）
-  const rows = [
-    // ヘッダー行
-    {
-      id: 'row-header',
-      cells: data.headers.map((header, index) => ({
-        id: `cell-header-${index}`,
-        value: header
-      }))
-    },
-    // データ行
-    ...data.rows.map((row, rowIndex) => ({
-      id: `row-${rowIndex + 1}`,
-      cells: row.map((cell, cellIndex) => ({
-        id: `cell-${rowIndex + 1}-${cellIndex}`,
-        value: cell
-      }))
+  // ヘッダー行を変換
+  const headerRow = {
+    id: 'row-header',
+    cells: Array(columnCount).fill(0).map((_, index) => ({
+      id: `cell-header-${index}`,
+      value: index < data.headers.length ? data.headers[index] : ''
     }))
-  ];
+  };
 
-  // 各行のセル数を統一（足りない場合は空のセルを追加）
-  rows.forEach(row => {
-    while (row.cells.length < columnCount) {
-      row.cells.push({
-        id: `cell-${row.id}-${row.cells.length}`,
-        value: ''
-      });
-    }
+  // データ行を変換
+  const dataRows = data.rows.map((row, rowIndex) => {
+    // 各行に対して、最大列数分のセルを作成
+    const cells = Array(columnCount).fill(0).map((_, cellIndex) => ({
+      id: `cell-${rowIndex + 1}-${cellIndex}`,
+      // 元のデータに該当するセルがある場合はその値を使用、ない場合は空文字
+      value: cellIndex < row.length ? row[cellIndex] : ''
+    }));
+
+    return {
+      id: `row-${rowIndex + 1}`,
+      cells
+    };
   });
+
+  // ヘッダー行とデータ行を結合
+  const rows = [headerRow, ...dataRows];
 
   return {
     columns,

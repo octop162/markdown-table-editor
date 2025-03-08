@@ -189,7 +189,8 @@ function extractTableData(editor: vscode.TextEditor, startLineNumber?: number): 
 			startLine,
 			endLine,
 			headers,
-			rows
+			rows,
+			columnCount: maxColumns
 		};
 	} catch (error) {
 		console.error('テーブルデータの抽出中にエラーが発生しました:', error);
@@ -200,9 +201,10 @@ function extractTableData(editor: vscode.TextEditor, startLineNumber?: number): 
 
 // テーブル行をパースする関数
 function parseTableRow(line: string): string[] {
-	return line.split('|')
-		.filter(cell => cell.trim() !== '')
-		.map(cell => cell.trim());
+	// 行の先頭と末尾の | を除去し、残りを | で分割
+	const cells = line.trim().replace(/^\||\|$/g, '').split('|');
+	// 各セルの前後の空白を除去
+	return cells.map(cell => cell.trim());
 }
 
 // テーブルデータの型定義
@@ -211,6 +213,7 @@ interface TableData {
 	endLine: number;
 	headers: string[];
 	rows: string[][];
+	columnCount: number;
 }
 
 // テーブル編集パネルクラス
@@ -319,7 +322,7 @@ class TableEditorPanel {
 
 	private _update() {
 		const webview = this._panel.webview;
-		this._panel.title = 'テーブル編集';
+		this._panel.title = 'Edit Table';
 		this._panel.webview.html = this._getHtmlForWebview(webview);
 	}
 
