@@ -10,17 +10,18 @@
 .toolbar {
   display: flex;
   align-items: center;
-  padding: 8px;
+  padding: 10px;
   background-color: #f5f5f5;
   border-bottom: 1px solid #ddd;
   flex-wrap: wrap;
   user-select: none;
+  gap: 8px;
 }
 
 .toolbarGroup {
   display: flex;
-  margin-right: 8px;
   margin-bottom: 8px;
+  gap: 6px;
 }
 
 .toolbarButton {
@@ -43,9 +44,9 @@
 
 .divider {
   width: 1px;
-  height: 24px;
+  height: 36px;
   background-color: #ddd;
-  margin: 0 8px;
+  margin: 0 4px;
 }
 
 .active {
@@ -65,6 +66,7 @@
 .tableContainer {
   flex: 1;
   overflow: auto;
+  padding: 10px;
 }
 
 .table {
@@ -73,6 +75,9 @@
   table-layout: fixed;
   height: 100%;
   font-size: 14px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  border-radius: 4px;
+  overflow: hidden;
 }
 
 .table tr {
@@ -87,6 +92,7 @@
   height: 100%;
   width: 100%;
   vertical-align: top;
+  transition: background-color 0.2s;
 }
 
 .selectedCell {
@@ -145,13 +151,34 @@
 @keyframes fadeOut {
   from { opacity: 1; transform: translateY(0); }
   to { opacity: 0; transform: translateY(-20px); }
-}  
+}
 
-/* このなかにダークモード時のスタイルを記述します */
+/* ダークモード対応 */
 :global(.vscode-dark) .toolbar {
-  background-color: #333;
+  background-color: #252526;
+  border-bottom: 1px solid #3c3c3c;
+}
+
+:global(.vscode-dark) .divider {
+  background-color: #3c3c3c;
+}
+
+:global(.vscode-dark) .table {
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+}
+
+:global(.vscode-dark) .cell {
+  border-color: #3c3c3c;
+  background-color: #1e1e1e;
+  color: #e0e0e0;
+}
+
+:global(.vscode-dark) .selectedCell {
+  background-color: rgba(30, 144, 255, 0.2);
+  border: 1px solid rgba(30, 144, 255, 0.5);
 }
 
 :global(.vscode-light) .toolbar {
-  background-color: #fff;
+  background-color: #f5f5f5;
+  border-bottom: 1px solid #ddd;
 }

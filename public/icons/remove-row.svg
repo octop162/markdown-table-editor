@@ -1,5 +1,13 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-  <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
-  <line x1="3" y1="12" x2="21" y2="12"></line>
-  <line x1="10" y1="18" x2="14" y2="18"></line>
+  <!-- テーブルの枠 -->
+  <rect x="3" y="3" width="18" height="18" rx="1" ry="1"></rect>
+  <!-- 水平線（行区切り） - 点線で表示 -->
+  <line x1="3" y1="12" x2="21" y2="12" stroke-dasharray="2,1"></line>
+  <!-- 垂直線（列区切り） -->
+  <line x1="12" y1="3" x2="12" y2="21"></line>
+  <!-- 削除を表すバツ印 -->
+  <line x1="7" y1="12" x2="17" y2="12" stroke="currentColor" stroke-width="2.5"></line>
+  <circle cx="21" cy="3" r="2" fill="none" stroke="currentColor"></circle>
+  <line x1="19.5" y1="4.5" x2="22.5" y2="1.5" stroke="currentColor"></line>
+  <line x1="19.5" y1="1.5" x2="22.5" y2="4.5" stroke="currentColor"></line>
 </svg>

@@ -2,22 +2,29 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 6px 10px;
-  background-color: #fff;
+  padding: 8px;
+  background-color: transparent;
   border: 1px solid #ccc;
   border-radius: 4px;
   cursor: pointer;
   font-size: 14px;
-  transition: background-color 0.2s;
+  transition: all 0.2s ease;
   gap: 5px;
+  min-width: 36px;
+  min-height: 36px;
+  position: relative;
+  overflow: hidden;
 }
 
+/* ライトモード（デフォルト）のスタイル */
 .iconButton:hover:not(:disabled) {
-  background-color: #f0f0f0;
+  background-color: rgba(0, 120, 215, 0.1);
+  border-color: #0078d7;
 }
 
 .iconButton:active:not(:disabled) {
-  background-color: #e0e0e0;
+  background-color: rgba(0, 120, 215, 0.2);
+  transform: translateY(1px);
 }
 
 .iconButton:disabled {
@@ -26,20 +33,201 @@
 }
 
 .icon {
-  width: 18px;
-  height: 18px;
+  width: 20px;
+  height: 20px;
   display: block;
+  transition: filter 0.2s ease;
 }
 
 .label {
   font-size: 13px;
   white-space: nowrap;
-} 
-
-:global(.vscode-dark) .toolbar {
-  background-color: #000;
+  margin-left: 4px;
 }
 
-:global(.vscode-light) .toolbar {
-  background-color: #fff;
+/* アクティブ状態のボタン */
+.iconButton.active {
+  background-color: rgba(0, 120, 215, 0.2);
+  border-color: #0078d7;
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.1);
+}
+
+/* 機能別のカラーカテゴリ */
+.iconButton.edit {
+  border-color: #4caf50;
+}
+
+.iconButton.edit:hover:not(:disabled) {
+  background-color: rgba(76, 175, 80, 0.1);
+  border-color: #4caf50;
+}
+
+.iconButton.edit:active:not(:disabled),
+.iconButton.edit.active {
+  background-color: rgba(76, 175, 80, 0.2);
+  border-color: #4caf50;
+}
+
+.iconButton.structure {
+  border-color: #ff9800;
+}
+
+.iconButton.structure:hover:not(:disabled) {
+  background-color: rgba(255, 152, 0, 0.1);
+  border-color: #ff9800;
+}
+
+.iconButton.structure:active:not(:disabled),
+.iconButton.structure.active {
+  background-color: rgba(255, 152, 0, 0.2);
+  border-color: #ff9800;
+}
+
+.iconButton.history {
+  border-color: #9c27b0;
+}
+
+.iconButton.history:hover:not(:disabled) {
+  background-color: rgba(156, 39, 176, 0.1);
+  border-color: #9c27b0;
+}
+
+.iconButton.history:active:not(:disabled),
+.iconButton.history.active {
+  background-color: rgba(156, 39, 176, 0.2);
+  border-color: #9c27b0;
+}
+
+.iconButton.format {
+  border-color: #2196f3;
+}
+
+.iconButton.format:hover:not(:disabled) {
+  background-color: rgba(33, 150, 243, 0.1);
+  border-color: #2196f3;
+}
+
+.iconButton.format:active:not(:disabled),
+.iconButton.format.active {
+  background-color: rgba(33, 150, 243, 0.2);
+  border-color: #2196f3;
+}
+
+.iconButton.save {
+  border-color: #f44336;
+}
+
+.iconButton.save:hover:not(:disabled) {
+  background-color: rgba(244, 67, 54, 0.1);
+  border-color: #f44336;
+}
+
+.iconButton.save:active:not(:disabled),
+.iconButton.save.active {
+  background-color: rgba(244, 67, 54, 0.2);
+  border-color: #f44336;
+}
+
+/* ダークモード対応 */
+:global(.vscode-dark) .iconButton {
+  background-color: transparent;
+  border-color: #555;
+  color: #e0e0e0;
+}
+
+:global(.vscode-dark) .icon {
+  filter: invert(1);
+}
+
+:global(.vscode-dark) .iconButton:hover:not(:disabled) {
+  background-color: rgba(30, 144, 255, 0.2);
+  border-color: #1e90ff;
+}
+
+:global(.vscode-dark) .iconButton:active:not(:disabled) {
+  background-color: rgba(30, 144, 255, 0.3);
+}
+
+:global(.vscode-dark) .iconButton.active {
+  background-color: rgba(30, 144, 255, 0.3);
+  border-color: #1e90ff;
+}
+
+/* ダークモードでの機能別カラー */
+:global(.vscode-dark) .iconButton.edit {
+  border-color: #81c784;
+}
+
+:global(.vscode-dark) .iconButton.edit:hover:not(:disabled),
+:global(.vscode-dark) .iconButton.edit:active:not(:disabled),
+:global(.vscode-dark) .iconButton.edit.active {
+  background-color: rgba(129, 199, 132, 0.2);
+  border-color: #81c784;
+}
+
+:global(.vscode-dark) .iconButton.structure {
+  border-color: #ffb74d;
+}
+
+:global(.vscode-dark) .iconButton.structure:hover:not(:disabled),
+:global(.vscode-dark) .iconButton.structure:active:not(:disabled),
+:global(.vscode-dark) .iconButton.structure.active {
+  background-color: rgba(255, 183, 77, 0.2);
+  border-color: #ffb74d;
+}
+
+:global(.vscode-dark) .iconButton.history {
+  border-color: #ce93d8;
+}
+
+:global(.vscode-dark) .iconButton.history:hover:not(:disabled),
+:global(.vscode-dark) .iconButton.history:active:not(:disabled),
+:global(.vscode-dark) .iconButton.history.active {
+  background-color: rgba(206, 147, 216, 0.2);
+  border-color: #ce93d8;
+}
+
+:global(.vscode-dark) .iconButton.format {
+  border-color: #64b5f6;
+}
+
+:global(.vscode-dark) .iconButton.format:hover:not(:disabled),
+:global(.vscode-dark) .iconButton.format:active:not(:disabled),
+:global(.vscode-dark) .iconButton.format.active {
+  background-color: rgba(100, 181, 246, 0.2);
+  border-color: #64b5f6;
+}
+
+:global(.vscode-dark) .iconButton.save {
+  border-color: #e57373;
+}
+
+:global(.vscode-dark) .iconButton.save:hover:not(:disabled),
+:global(.vscode-dark) .iconButton.save:active:not(:disabled),
+:global(.vscode-dark) .iconButton.save.active {
+  background-color: rgba(229, 115, 115, 0.2);
+  border-color: #e57373;
+}
+
+/* ツールチップスタイル */
+.tooltip {
+  position: absolute;
+  bottom: -30px;
+  left: 50%;
+  transform: translateX(-50%);
+  background-color: rgba(0, 0, 0, 0.8);
+  color: white;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+  white-space: nowrap;
+  opacity: 0;
+  transition: opacity 0.2s, bottom 0.2s;
+  pointer-events: none;
+  z-index: 100;
+}
+
+.iconButton:hover .tooltip {
+  opacity: 1;
+  bottom: -25px;
 }

@@ -356,12 +356,14 @@ export const Table: FC<TableProps> = ({ initialData, onSave }) => {
             onClick={copySelectedCells}
             disabled={!selection}
             title="Copy (Ctrl+C)"
+            category="edit"
           />
           <IconButton
             iconType={IconType.CUT}
             onClick={cutSelectedCells}
             disabled={!selection}
             title="Cut (Ctrl+X)"
+            category="edit"
           />
           <IconButton
             iconType={IconType.PASTE}
@@ -372,17 +374,20 @@ export const Table: FC<TableProps> = ({ initialData, onSave }) => {
             }}
             disabled={!currentCell}
             title="Paste (Ctrl+V)"
+            category="edit"
           />
           <IconButton
             iconType={IconType.SELECT_ALL}
             onClick={selectAllCells}
             title="Select All (Ctrl+A)"
+            category="edit"
           />
           <IconButton
             iconType={IconType.CLEAR_SELECTION}
             onClick={clearSelectedCells}
             disabled={!selection}
             title="Clear Selection (Delete)"
+            category="edit"
           />
         </div>
 
@@ -393,23 +398,27 @@ export const Table: FC<TableProps> = ({ initialData, onSave }) => {
             iconType={IconType.ADD_ROW}
             onClick={addRow}
             title="Add Row"
+            category="structure"
           />
           <IconButton
             iconType={IconType.ADD_COLUMN}
             onClick={addColumn}
             title="Add Column"
+            category="structure"
           />
           <IconButton
             iconType={IconType.REMOVE_ROW}
             onClick={safeRemoveRow}
             disabled={data.length <= 1}
             title="Remove Row"
+            category="structure"
           />
           <IconButton
             iconType={IconType.REMOVE_COLUMN}
             onClick={safeRemoveColumn}
             disabled={data[0].length <= 1}
             title="Remove Column"
+            category="structure"
           />
         </div>
 
@@ -421,12 +430,14 @@ export const Table: FC<TableProps> = ({ initialData, onSave }) => {
             onClick={undoAction}
             disabled={!canUndo}
             title="Undo (Ctrl+Z)"
+            category="history"
           />
           <IconButton
             iconType={IconType.REDO}
             onClick={redoAction}
             disabled={!canRedo}
             title="Redo (Ctrl+Y)"
+            category="history"
           />
         </div>
 
@@ -450,7 +461,14 @@ export const Table: FC<TableProps> = ({ initialData, onSave }) => {
                     : columnAligns[currentCell.col] === button.align)
                   ? styles.active : ''
               }
+              active={
+                currentCell &&
+                (selection
+                  ? isAlignActiveForSelection(button.align)
+                  : columnAligns[currentCell.col] === button.align) || false
+              }
               title={button.title}
+              category="format"
             />
           ))}
         </div>
@@ -462,6 +480,7 @@ export const Table: FC<TableProps> = ({ initialData, onSave }) => {
             iconType={IconType.UPDATE_WIDTH}
             onClick={updateAllCellWidths}
             title="Auto Adjust Width"
+            category="format"
           />
         </div>
 
@@ -475,6 +494,7 @@ export const Table: FC<TableProps> = ({ initialData, onSave }) => {
               onSave(markdown);
             }}
             title="Save"
+            category="save"
           />
         </div>
       </div>
