@@ -3,7 +3,7 @@
   "displayName": "markdown-table-editor",
   "description": "A VSCode extension for visually editing markdown tables.",
   "publisher": "octop162",
-  "version": "0.0.2",
+  "version": "0.0.3",
   "license": "MIT",
   "engines": {
     "vscode": "^1.90.0"
