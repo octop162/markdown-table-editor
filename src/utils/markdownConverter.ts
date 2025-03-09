@@ -213,7 +213,7 @@ const padCellContentWithBr = (
 }
 
 /**
- * 値を正規化する（改行コードの正規化と末尾の改行削除）
+ * 値を正規化する（改行コードの正規化）
  * @param value セルの値
  * @returns 正規化された値
  */
@@ -226,13 +226,7 @@ const normalizeValue = (value: CellValue): string => {
   // CR -> LF
   normalizedValue = normalizedValue.replace(/\r/g, '\n');
   
-  // 末尾の改行を削除（複数の改行も対応）
-  let trimmedValue = normalizedValue;
-  while (trimmedValue.endsWith('\n')) {
-    trimmedValue = trimmedValue.slice(0, -1);
-  }
-  
-  return trimmedValue;
+  return normalizedValue;
 }
 
 /**

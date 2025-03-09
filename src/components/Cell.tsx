@@ -117,9 +117,15 @@ export const Cell: FC<CellProps> = ({
 
   // HTMLをプレーンテキストに変換する関数
   const convertHtmlToPlainText = (html: string): string => {
-    const tempDiv = document.createElement('div')
-    tempDiv.innerHTML = html
-    return tempDiv.innerText || tempDiv.textContent || ''
+    // <br>タグを改行に変換
+    const withLineBreaks = html.replace(/<br\s*\/?>/gi, '\n');
+    
+    // その他のHTMLタグを除去
+    const tempDiv = document.createElement('div');
+    tempDiv.innerHTML = withLineBreaks;
+    
+    // innerTextまたはtextContentを使用してテキストを取得
+    return tempDiv.innerText || tempDiv.textContent || '';
   }
 
   // テキストをHTMLに変換する関数（改行をbrタグに変換）
@@ -189,10 +195,10 @@ export const Cell: FC<CellProps> = ({
   // IME入力終了
   const handleCompositionEnd = () => {
     // IME入力完了フラグを設定
-    isComposingRef.current = false
+    isComposingRef.current = false;
     
     if (onCompositionEnd) {
-      onCompositionEnd()
+      onCompositionEnd();
     }
     
     // IME入力完了時に親コンポーネントに通知
@@ -201,58 +207,49 @@ export const Cell: FC<CellProps> = ({
       setTimeout(() => {
         if (editableRef.current) {
           // HTMLを取得して正規化
-          const newValue = editableRef.current.innerHTML
+          const newValue = editableRef.current.innerHTML;
           
           // 正規化したHTMLを設定
           if (editableRef.current.innerHTML !== newValue) {
-            editableRef.current.innerHTML = newValue
+            editableRef.current.innerHTML = newValue;
           }
           
           // プレーンテキストに変換
-          const plainText = convertHtmlToPlainText(newValue)
+          const plainText = convertHtmlToPlainText(newValue);
           
-          // 末尾の改行を削除
-          const trimmedValue = plainText.endsWith('\n') 
-            ? plainText.slice(0, -1) 
-            : plainText;
-          
-          inputValueRef.current = trimmedValue
-          setHasUserEdited(true)
-          onEdit(trimmedValue)
-          lastNotifiedValueRef.current = trimmedValue
+          // 入力値を更新（末尾の改行を保持）
+          inputValueRef.current = plainText;
+          setHasUserEdited(true);
+          onEdit(plainText);
+          lastNotifiedValueRef.current = plainText;
         }
-      }, 0)
+      }, 0);
     }
-  }
+  };
 
   // フォーカスが外れたときの処理
   const handleBlur = () => {
     // 編集中の場合のみ処理
     if (isEditing && hasUserEdited && editableRef.current) {
       // HTMLを取得して正規化
-      const newValue = editableRef.current.innerHTML
+      const newValue = editableRef.current.innerHTML;
       
       // 正規化したHTMLを設定
       if (editableRef.current.innerHTML !== newValue) {
-        editableRef.current.innerHTML = newValue
+        editableRef.current.innerHTML = newValue;
       }
       
       // プレーンテキストに変換
-      const plainText = convertHtmlToPlainText(newValue)
+      const plainText = convertHtmlToPlainText(newValue);
       
-      // 末尾の改行を削除
-      const trimmedValue = plainText.endsWith('\n') 
-        ? plainText.slice(0, -1) 
-        : plainText;
-      
-      // 確実に最新の値を親に通知
-      if (trimmedValue !== lastNotifiedValueRef.current) {
-        onEdit(trimmedValue)
-        lastNotifiedValueRef.current = trimmedValue
-        inputValueRef.current = trimmedValue
+      // 入力値を更新（末尾の改行を保持）
+      if (plainText !== lastNotifiedValueRef.current) {
+        inputValueRef.current = plainText;
+        onEdit(plainText);
+        lastNotifiedValueRef.current = plainText;
       }
     }
-  }
+  };
 
   // 編集中のペースト処理
   const handlePaste = (e: React.ClipboardEvent<HTMLDivElement>) => {
