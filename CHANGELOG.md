@@ -1,3 +1,7 @@
+### 0.0.4
+
+- fix DisplayName
+
 ### 0.0.3
 
 - Bugfix
