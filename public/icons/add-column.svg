@@ -1,12 +1,5 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-  <!-- テーブルの枠 -->
-  <rect x="3" y="3" width="12" height="18" rx="1" ry="1"></rect>
-  <!-- 水平線（行区切り） -->
-  <line x1="3" y1="12" x2="15" y2="12"></line>
-  <!-- 垂直線（列区切り） -->
-  <line x1="9" y1="3" x2="9" y2="21"></line>
-  <!-- 右向き矢印 -->
-  <path d="M18 12l-3.5-3.5M18 12l-3.5 3.5M15 12h6"></path>
-  <!-- プラス記号 -->
-  <circle cx="21" cy="12" r="1" fill="currentColor" stroke="none"></circle>
+<?xml version="1.0" encoding="utf-8"?><!-- Uploaded to: SVG Repo, www.svgrepo.com, Generator: SVG Repo Mixer Tools -->
+<svg width="800px" height="800px" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+<path fill-rule="evenodd" clip-rule="evenodd" d="M4 20H20V4H4V20ZM5.5 18.5V5.5H13.9996L14 18.5H5.5ZM15.5 18.5L15.4999 16.5H18.5L18.5 18.5H15.5ZM18.5 15H15.4999L15.4998 13H18.5V15ZM18.5 11.5H15.4998L15.4997 9.51959H18.5L18.5 11.5ZM18.5 8.01959H15.4997L15.4996 5.5H18.5V8.01959Z" fill="#1F2328"/>
+<path fill-rule="evenodd" clip-rule="evenodd" d="M9 12.5V15H10.5V12.5H13.0001V11H10.5V8.5H9V11H6.5V12.5H9Z" fill="#1F2328"/>
 </svg>
