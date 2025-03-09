@@ -45,11 +45,6 @@ export const convertToMarkdown = (data: TableData, columnAligns?: TextAlign[]): 
     return padCellContent(formatCellValue(value), columnMaxWidths[index], align, isEmpty);
   })
   
-  // 1行だけの場合は区切り行を追加しない
-  if (data.length === 1) {
-    return '| ' + headerRow.join(' | ') + ' |'
-  }
-  
   // ヘッダー行
   let markdown = '| ' + headerRow.join(' | ') + ' |\n'
   
@@ -80,6 +75,11 @@ export const convertToMarkdown = (data: TableData, columnAligns?: TextAlign[]): 
       return ':' + '-'.repeat(hyphenCount - 1);
     }
   }).join('|') + '|\n'
+  
+  // 1行だけの場合は区切り行までで終了
+  if (data.length === 1) {
+    return markdown;
+  }
   
   // データ行（ヘッダー行を除く）
   for (let i = 1; i < data.length; i++) {
