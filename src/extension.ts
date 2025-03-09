@@ -9,57 +9,90 @@ const SEPARATOR_REGEX = /^\s*\|(\s*[-:]+[-|\s:]*)\|\s*$/;
 let currentCodeLensProvider: vscode.Disposable | undefined;
 
 export function activate(context: vscode.ExtensionContext) {
-	if (vscode.window.activeTextEditor?.document.languageId === 'markdown') {
-
-		// テーブル編集コマンドを登録
-		const editTableCommand = vscode.commands.registerCommand('markdown-table-editor.editTable', (lineNumber?: number) => {
-			const editor = vscode.window.activeTextEditor;
-			if (!editor) {
-				return;
-			}
-			
-			// テーブルデータを取得
-			const tableData = extractTableData(editor, lineNumber);
-			if (!tableData) {
-				vscode.window.showInformationMessage('テーブルが見つかりませんでした');
-				return;
-			}
-			
-			// テーブル編集パネルを表示
-			TableEditorPanel.createOrShow(context.extensionUri, tableData, editor);
-		});
-		
-		// テキストエディタの変更を監視
-		const changeActiveEditor = vscode.window.onDidChangeActiveTextEditor(editor => {
-			if (editor && editor.document.languageId === 'markdown') {
-				updateDecorations(editor);
-			}
-		});
-		
-		// テキスト内容の変更を監視
-		const changeDocument = vscode.workspace.onDidChangeTextDocument(event => {
-			const editor = vscode.window.activeTextEditor;
-			if (editor && event.document === editor.document && 
-				event.document.languageId === 'markdown') {
-				updateDecorations(editor);
-			}
-		});
-		
-		// 初期表示時にデコレーションを更新
-		if (vscode.window.activeTextEditor) {
-			updateDecorations(vscode.window.activeTextEditor);
+	// テーブル編集コマンドを登録
+	const editTableCommand = vscode.commands.registerCommand('markdown-table-editor.editTable', (lineNumber?: number) => {
+		const editor = vscode.window.activeTextEditor;
+		if (!editor) {
+			return;
 		}
 		
-		context.subscriptions.push(
-			editTableCommand, 
-			changeActiveEditor,
-			changeDocument
-		);
+		// テーブルデータを取得
+		const tableData = extractTableData(editor, lineNumber);
+		if (!tableData) {
+			vscode.window.showInformationMessage('テーブルが見つかりませんでした');
+			return;
+		}
+		
+		// テーブル編集パネルを表示
+		TableEditorPanel.createOrShow(context.extensionUri, tableData, editor);
+	});
+	
+	// テキストエディタの変更を監視
+	const changeActiveEditor = vscode.window.onDidChangeActiveTextEditor(editor => {
+		if (editor && editor.document.languageId === 'markdown') {
+			updateDecorations(editor);
+		}
+	});
+	
+	// テキスト内容の変更を監視（デバウンス処理を追加）
+	let timeout: NodeJS.Timeout | undefined = undefined;
+	const changeDocument = vscode.workspace.onDidChangeTextDocument(event => {
+		const editor = vscode.window.activeTextEditor;
+		if (editor && event.document === editor.document && 
+			event.document.languageId === 'markdown') {
+			
+			// デバウンス処理（短時間に連続して呼ばれるのを防ぐ）
+			if (timeout) {
+				clearTimeout(timeout);
+				timeout = undefined;
+			}
+			timeout = setTimeout(() => {
+				updateDecorations(editor);
+			}, 300); // 300ms後に実行
+		}
+	});
+	
+	// Markdownファイルが開かれたときにデコレーションを更新
+	const openTextDocument = vscode.workspace.onDidOpenTextDocument(document => {
+		if (document.languageId === 'markdown') {
+			const editor = vscode.window.activeTextEditor;
+			if (editor && editor.document === document) {
+				updateDecorations(editor);
+			}
+		}
+	});
+	
+	// 初期表示時にデコレーションを更新
+	if (vscode.window.activeTextEditor && 
+		vscode.window.activeTextEditor.document.languageId === 'markdown') {
+		updateDecorations(vscode.window.activeTextEditor);
 	}
+	
+	// 拡張機能が非アクティブになったときにタイムアウトをクリア
+	context.subscriptions.push({
+		dispose: () => {
+			if (timeout) {
+				clearTimeout(timeout);
+				timeout = undefined;
+			}
+		}
+	});
+	
+	context.subscriptions.push(
+		editTableCommand, 
+		changeActiveEditor,
+		changeDocument,
+		openTextDocument
+	);
 }
 
 // テーブル行を検出してボタンを表示するデコレーション
 function updateDecorations(editor: vscode.TextEditor) {
+	// エディタがMarkdownでない場合は何もしない
+	if (!editor || editor.document.languageId !== 'markdown') {
+		return;
+	}
+
 	try {
 		// 既存のCodeLensプロバイダーがあれば破棄
 		if (currentCodeLensProvider) {
@@ -72,46 +105,61 @@ function updateDecorations(editor: vscode.TextEditor) {
 		// 検出されたテーブルを格納する配列
 		const tables: { startLine: number; endLine: number }[] = [];
 		
+		// ドキュメントが有効かチェック
+		if (!document || document.isClosed) {
+			return;
+		}
+		
 		let i = 0;
 		while (i < document.lineCount) {
-			const line = document.lineAt(i);
-			
-			// テーブルの開始行を検出（テーブル行かつ前の行がテーブル行でない）
-			if (TABLE_REGEX.test(line.text) && (i === 0 || !TABLE_REGEX.test(document.lineAt(i - 1).text))) {
-				const startLine = i;
+			// 行が取得できない場合はスキップ
+			try {
+				const line = document.lineAt(i);
 				
-				// テーブルの終了行を検索
-				let endLine = startLine;
-				while (endLine + 1 < document.lineCount && TABLE_REGEX.test(document.lineAt(endLine + 1).text)) {
-					endLine++;
+				// テーブルの開始行を検出（テーブル行かつ前の行がテーブル行でない）
+				if (TABLE_REGEX.test(line.text) && (i === 0 || !TABLE_REGEX.test(document.lineAt(i - 1).text))) {
+					const startLine = i;
+					
+					// テーブルの終了行を検索
+					let endLine = startLine;
+					while (endLine + 1 < document.lineCount && TABLE_REGEX.test(document.lineAt(endLine + 1).text)) {
+						endLine++;
+					}
+					
+					// 有効なテーブルかチェック（少なくとも2行以上あり、2行目が区切り行）
+					if (endLine > startLine && startLine + 1 < document.lineCount && SEPARATOR_REGEX.test(document.lineAt(startLine + 1).text)) {
+						tables.push({ startLine, endLine });
+					}
+					
+					// 次の検索位置を設定
+					i = endLine + 1;
+				} else {
+					i++;
 				}
-				
-				// 有効なテーブルかチェック（少なくとも2行以上あり、2行目が区切り行）
-				if (endLine > startLine && SEPARATOR_REGEX.test(document.lineAt(startLine + 1).text)) {
-					tables.push({ startLine, endLine });
-				}
-				
-				// 次の検索位置を設定
-				i = endLine + 1;
-			} else {
-				i++;
+			} catch (lineError) {
+				console.error(`行の取得中にエラーが発生しました (行: ${i}):`, lineError);
+				i++; // エラーが発生した場合は次の行へ
 			}
 		}
 		
 		// クリックイベントを登録
-		currentCodeLensProvider = vscode.languages.registerCodeLensProvider('markdown', {
+		currentCodeLensProvider = vscode.languages.registerCodeLensProvider({ language: 'markdown', scheme: '*' }, {
 			provideCodeLenses(document) {
 				const codeLenses: vscode.CodeLens[] = [];
 				
 				// 各テーブルの開始行にCodeLensを追加
 				tables.forEach(table => {
-					if (table.startLine < document.lineCount) {
-						const line = document.lineAt(table.startLine);
-						codeLenses.push(new vscode.CodeLens(line.range, {
-							title: '📝',
-							command: 'markdown-table-editor.editTable',
-							arguments: [table.startLine]
-						}));
+					try {
+						if (table.startLine < document.lineCount) {
+							const line = document.lineAt(table.startLine);
+							codeLenses.push(new vscode.CodeLens(line.range, {
+								title: '📝',
+								command: 'markdown-table-editor.editTable',
+								arguments: [table.startLine]
+							}));
+						}
+					} catch (lensError) {
+						console.error(`CodeLensの作成中にエラーが発生しました (行: ${table.startLine}):`, lensError);
 					}
 				});
 				
@@ -165,13 +213,31 @@ function extractTableData(editor: vscode.TextEditor, startLineNumber?: number): 
 		
 		// ヘッダー行とデータ行を分離
 		const headers = parseTableRow(tableLines[0]);
+		const separatorRow = parseTableRow(tableLines[1]); // 区切り行
 		const rows = tableLines.slice(2).map(line => parseTableRow(line));
 		
 		// 列数を統一する
 		const maxColumns = Math.max(
 			headers.length,
+			separatorRow.length,
 			...rows.map(row => row.length)
 		);
+		
+		// 文字揃え情報を取得
+		const alignments = Array(maxColumns).fill('left'); // デフォルトは左揃え
+		
+		// 区切り行から文字揃え情報を抽出
+		for (let i = 0; i < separatorRow.length; i++) {
+			const cell = separatorRow[i];
+			if (cell.startsWith(':') && cell.endsWith(':')) {
+				alignments[i] = 'center'; // 中央揃え
+			} else if (cell.endsWith(':')) {
+				alignments[i] = 'right'; // 右揃え
+			} else if (cell.startsWith(':')) {
+				alignments[i] = 'left'; // 左揃え（明示的）
+			}
+			// それ以外は左揃え（デフォルト）
+		}
 		
 		// ヘッダーの列数を調整
 		while (headers.length < maxColumns) {
@@ -190,7 +256,8 @@ function extractTableData(editor: vscode.TextEditor, startLineNumber?: number): 
 			endLine,
 			headers,
 			rows,
-			columnCount: maxColumns
+			columnCount: maxColumns,
+			alignments
 		};
 	} catch (error) {
 		console.error('テーブルデータの抽出中にエラーが発生しました:', error);
@@ -214,6 +281,7 @@ interface TableData {
 	headers: string[];
 	rows: string[][];
 	columnCount: number;
+	alignments: string[]; // 各列の文字揃え情報（'left', 'center', 'right'）
 }
 
 // テーブル編集パネルクラス

@@ -11,6 +11,7 @@ interface EditableTableData {
     id: string;
     index: number;
     width: string;
+    align?: string; // 文字揃え情報
   }[];
 }
 
@@ -23,10 +24,11 @@ interface AppProps {
 // EditableTableDataをTableDataに変換する関数
 const convertToTableData = (editableData: EditableTableData): TableData => {
   return editableData.rows.map(row => 
-    row.cells.map(cell => ({
+    row.cells.map((cell, index) => ({
       value: cell.value,
       isEditing: false,
-      width: 100 // デフォルト幅
+      width: 100, // デフォルト幅
+      align: editableData.columns[index]?.align || 'left' // 文字揃え情報
     }))
   );
 };

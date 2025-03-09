@@ -47,7 +47,16 @@ const alignButtons: AlignButton[] = [
 
 export const Table: FC<TableProps> = ({ initialData, onSave }) => {
   const tableRef = useRef<HTMLDivElement>(null)
-  const [columnAligns, setColumnAligns] = useState<TextAlign[]>(Array(initialData[0].length).fill('left'))
+  // 初期データから文字揃え情報を取得
+  const [columnAligns, setColumnAligns] = useState<TextAlign[]>(() => {
+    // 初期データから各列の文字揃え情報を取得
+    if (initialData.length > 0 && initialData[0].length > 0) {
+      return initialData[0].map(cell => 
+        (cell.align as TextAlign) || 'left'
+      );
+    }
+    return Array(initialData[0]?.length || 0).fill('left');
+  });
   const [isDarkTheme, setIsDarkTheme] = useState(false)
   
   // VSCodeのテーマ情報を取得

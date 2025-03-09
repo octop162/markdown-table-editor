@@ -4,6 +4,7 @@ export type CellData = {
   isEditing: boolean
   isSelected?: boolean
   width?: number // セルの幅（px単位）
+  align?: string // 文字揃え情報（'left', 'center', 'right'）
 }
 
 export type TableData = CellData[][]

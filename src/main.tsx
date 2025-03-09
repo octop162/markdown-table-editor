@@ -33,6 +33,7 @@ interface TableDataFromVSCode {
   headers: string[];
   rows: string[][];
   columnCount?: number; // 列数の情報を追加
+  alignments?: string[]; // 各列の文字揃え情報（'left', 'center', 'right'）
 }
 
 // EditableTableで使用するデータ形式
@@ -45,6 +46,7 @@ interface EditableTableData {
     id: string;
     index: number;
     width: string;
+    align?: string; // 文字揃え情報
   }[];
 }
 
@@ -60,11 +62,15 @@ function convertToEditableTableData(data: TableDataFromVSCode): EditableTableDat
     ...data.rows.map(row => row.length)
   );
 
+  // 文字揃え情報を取得
+  const alignments = data.alignments || Array(columnCount).fill('left');
+
   // 列の定義を作成
   const columns = Array(columnCount).fill(0).map((_, index) => ({
     id: `column-${index}`,
     index,
-    width: '100px' // デフォルト幅
+    width: '100px', // デフォルト幅
+    align: alignments[index] // 文字揃え情報を設定
   }));
 
   // ヘッダー行を変換
