@@ -1,5 +1,4 @@
 import { useEffect, useRef, useCallback } from 'react'
-import { TableData } from '../types/table'
 
 type KeyboardEventHandlers = {
   moveSelection: (direction: 'up' | 'down' | 'left' | 'right', forceNoShift?: boolean) => void
@@ -31,7 +30,6 @@ type CellEditInfo = {
  * @param handlers イベントハンドラー
  */
 export const useKeyboardEvents = (
-  data : TableData,
   handlers: KeyboardEventHandlers,
   cellEditInfo?: CellEditInfo // Cellからの編集情報を受け取るパラメータを追加
 ) => {
