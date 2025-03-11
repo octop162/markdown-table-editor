@@ -251,13 +251,6 @@ export const Cell: FC<CellProps> = ({
     }
   };
 
-  // 編集中のペースト処理
-  const handlePaste = (e: React.ClipboardEvent<HTMLDivElement>) => {
-    e.preventDefault()
-    const text = e.clipboardData.getData('text/plain')
-    document.execCommand('insertText', false, text)
-  }
-
   // クリックイベントの処理
   const handleClick = () => {
     onSelect()
@@ -320,7 +313,6 @@ export const Cell: FC<CellProps> = ({
           onInput={handleInput}
           onBlur={handleBlur}
           onKeyDown={onKeyDown}
-          onPaste={handlePaste}
           onCompositionStart={handleCompositionStart}
           onCompositionEnd={handleCompositionEnd}
           className={`${styles.cellInput} ${styles.editing}`}

@@ -1,3 +1,7 @@
+### 0.0.5
+
+- Fixed an issue where pasting was not possible during editing
+
 ### 0.0.4
 
 - fix DisplayName

@@ -108,116 +108,115 @@ export const useKeyboardEvents = (
         }
         return;
       }
-
-      // 編集モード中は他のキーボードショートカットを処理しない
       return;
-    }
+    } else {
 
-    // 以下、編集モードでない場合の処理
-    
-    // Enter 押された場合編集モードにする
-    if (currentCellEditInfo && ((e.key === 'Enter' && !e.shiftKey && !e.altKey) )) {
-      currentHandlers.startEditing();
-      return;
-    }
-
-    // IME入力中はキーボードイベントを処理しない
-    if (isComposingRef.current) {
-      console.log('IME composing, ignoring key event');
-      return;
-    }
-
-    // Shiftキーの状態を追跡
-    if (e.key === 'Shift') {
-      currentHandlers.setShiftKey(true);
-      return;
-    }
-
-    // Escキーで選択解除
-    if (e.key === 'Escape') {
-      e.preventDefault();
-      if (currentHandlers.clearSelection) {
-        currentHandlers.clearSelection();
+      // 以下、編集モードでない場合の処理
+      
+      // Enter 押された場合編集モードにする
+      if (currentCellEditInfo && ((e.key === 'Enter' && !e.shiftKey && !e.altKey) )) {
+        currentHandlers.startEditing();
+        return;
       }
-      return;
-    }
 
-    // Ctrl+A または Cmd+A ですべて選択
-    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'a') {
-      e.preventDefault()
-      if (currentHandlers.selectAllCells) {
-        currentHandlers.selectAllCells()
+      // IME入力中はキーボードイベントを処理しない
+      if (isComposingRef.current) {
+        console.log('IME composing, ignoring key event');
+        return;
       }
-      return
-    }
 
-    // Tabキーで右/左に移動
-    if (e.key === 'Tab') {
-      e.preventDefault()
-      if (e.shiftKey) {
-        // Shift+Tabの場合は、範囲選択を強制的に無効にして左に移動
-        currentHandlers.moveSelection('left', true)
-      } else {
-        currentHandlers.moveSelection('right')
+      // Shiftキーの状態を追跡
+      if (e.key === 'Shift') {
+        currentHandlers.setShiftKey(true);
+        return;
       }
-      return
-    }
 
-    // 矢印キーでセル移動
-    if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.key)) {
-      e.preventDefault()
-
-      const direction = e.key.replace('Arrow', '').toLowerCase() as 'up' | 'down' | 'left' | 'right'
-      currentHandlers.moveSelection(direction)
-      return
-    }
-
-    // DeleteまたはBackspaceキーでセルクリア
-    if (e.key === 'Delete' || e.key === 'Backspace') {
-      e.preventDefault()
-      currentHandlers.clearSelectedCells()
-      return
-    }
-
-    // Ctrl+C または Cmd+C でコピー
-    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'c') {
-      e.preventDefault()
-      currentHandlers.copySelectedCells()
-      return
-    }
-
-    // Ctrl+X または Cmd+X でカット
-    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'x') {
-      e.preventDefault()
-      if (currentHandlers.cutSelectedCells) {
-        currentHandlers.cutSelectedCells()
+      // Escキーで選択解除
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        if (currentHandlers.clearSelection) {
+          currentHandlers.clearSelection();
+        }
+        return;
       }
-      return
-    }
 
-    // Ctrl+V または Cmd+V でペースト
-    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'v') {
-      e.preventDefault()
-      currentHandlers.pasteToSelectedCells()
-      return
-    }
-
-    // Ctrl+Z または Cmd+Z で元に戻す
-    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z') {
-      e.preventDefault()
-      if (currentHandlers.undo) {
-        currentHandlers.undo()
+      // Ctrl+A または Cmd+A ですべて選択
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'a') {
+        e.preventDefault()
+        if (currentHandlers.selectAllCells) {
+          currentHandlers.selectAllCells()
+        }
+        return
       }
-      return
-    }
 
-    // Ctrl+Y または Cmd+Y でやり直し
-    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'y') {
-      e.preventDefault()
-      if (currentHandlers.redo) {
-        currentHandlers.redo()
+      // Tabキーで右/左に移動
+      if (e.key === 'Tab') {
+        e.preventDefault()
+        if (e.shiftKey) {
+          // Shift+Tabの場合は、範囲選択を強制的に無効にして左に移動
+          currentHandlers.moveSelection('left', true)
+        } else {
+          currentHandlers.moveSelection('right')
+        }
+        return
       }
-      return
+
+      // 矢印キーでセル移動
+      if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.key)) {
+        e.preventDefault()
+
+        const direction = e.key.replace('Arrow', '').toLowerCase() as 'up' | 'down' | 'left' | 'right'
+        currentHandlers.moveSelection(direction)
+        return
+      }
+
+      // DeleteまたはBackspaceキーでセルクリア
+      if (e.key === 'Delete' || e.key === 'Backspace') {
+        e.preventDefault()
+        currentHandlers.clearSelectedCells()
+        return
+      }
+
+      // Ctrl+C または Cmd+C でコピー
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'c') {
+        e.preventDefault()
+        currentHandlers.copySelectedCells()
+        return
+      }
+
+      // Ctrl+X または Cmd+X でカット
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'x') {
+        e.preventDefault()
+        if (currentHandlers.cutSelectedCells) {
+          currentHandlers.cutSelectedCells()
+        }
+        return
+      }
+
+      // Ctrl+V または Cmd+V でペースト
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'v') {
+        e.preventDefault()
+        currentHandlers.pasteToSelectedCells()
+        return
+      }
+
+      // Ctrl+Z または Cmd+Z で元に戻す
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z') {
+        e.preventDefault()
+        if (currentHandlers.undo) {
+          currentHandlers.undo()
+        }
+        return
+      }
+
+      // Ctrl+Y または Cmd+Y でやり直し
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'y') {
+        e.preventDefault()
+        if (currentHandlers.redo) {
+          currentHandlers.redo()
+        }
+        return
+      }
     }
   }, []);
 
