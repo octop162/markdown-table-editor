@@ -1,3 +1,7 @@
+### 0.0.6
+
+- Fixed regression bugs
+
 ### 0.0.5
 
 - Fixed an issue where pasting was not possible during editing
